@@ -31,3 +31,9 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### Project specific ###
+data/
+nul
+FRONTEND_PATH.md
+.claude/
