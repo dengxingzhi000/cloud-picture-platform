@@ -1,1 +1,65 @@
-spring.application.name=cloud-picture-platform
+server:
+  port: 8080
+
+spring:
+  application:
+    name: cloud-picture-platform
+  datasource:
+    url: jdbc:h2:mem:cloud_picture;MODE=PostgreSQL;DB_CLOSE_DELAY=-1
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: false
+  data:
+    redis:
+      host: 192.168.18.145
+      port: 6379
+  cache:
+    type: redis
+    redis:
+      cache-null-values: false
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 200MB
+
+app:
+  storage:
+    provider: local
+    local:
+      root: data/uploads
+    cos:
+      secret-id: ${COS_SECRET_ID:your-secret-id-here}
+      secret-key: ${COS_SECRET_KEY:your-secret-key-here}
+      region: na-siliconvalley
+      bucket: costorage-1320249760
+      endpoint:
+      base-url: http://costorage.auditoryworks.co/
+      prefix:
+  websocket:
+    endpoint: /ws
+  security:
+    jwt:
+      issuer: cloud-picture-platform
+      secret: change-me-change-me-change-me-change-me
+      access-token-ttl-seconds: 7200
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,caches,prometheus
+  health:
+    redis:
+      enabled: true
+  metrics:
+    enable:
+      cache: true
