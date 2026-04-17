@@ -7,7 +7,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import com.cn.cloudpictureplatform.domain.space.Space;
 
 public interface SpaceRepository extends JpaRepository<Space, UUID> {
-    Optional<Space> findByOwnerId(UUID ownerId);
+    Optional<Space> findFirstByOwnerIdAndType(UUID ownerId, com.cn.cloudpictureplatform.domain.space.SpaceType type);
 
     Optional<Space> findByTeamId(UUID teamId);
 

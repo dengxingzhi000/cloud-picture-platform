@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(JAVA_HOME=\"/d/BuildApplication/JetBrains/IntelliJ IDEA 2025.3.1/jbr\" PATH=\"$JAVA_HOME/bin:$PATH\" java:*)",
+      "Bash(py:*)",
+      "mcp__ide__getDiagnostics",
+      "Bash(./mvnw compile:*)",
+      "Bash(grep -rho \"className=\\\\`[^\\\\`]*\\\\`\" \"D:/ProgramProject/cloud-picture-platform-web/src/react-app/pages\")",
+      "Bash(grep -rn \"className=\\\\`\" \"D:/ProgramProject/cloud-picture-platform-web/src/react-app/pages\")",
+      "Bash(grep -rn \"className={\\\\`\" \"D:/ProgramProject/cloud-picture-platform-web/src/react-app/pages\")",
+      "WebSearch",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:www.npmjs.com)",
+      "WebFetch(domain:tldraw.dev)",
+      "WebFetch(domain:docs.yjs.dev)",
+      "WebFetch(domain:discuss.yjs.dev)",
+      "WebFetch(domain:medium.com)",
+      "WebFetch(domain:liveblocks.io)"
+    ]
+  }
+}

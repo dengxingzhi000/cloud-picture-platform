@@ -5,16 +5,22 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Comparator;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.UUID;
 import javax.imageio.ImageIO;
+import jakarta.persistence.criteria.Expression;
 import jakarta.persistence.criteria.Subquery;
 import jakarta.persistence.criteria.Predicate;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
@@ -35,7 +41,10 @@ import com.cn.cloudpictureplatform.domain.picture.Tag;
 import com.cn.cloudpictureplatform.domain.picture.Visibility;
 import com.cn.cloudpictureplatform.domain.search.PictureSearchDocument;
 import com.cn.cloudpictureplatform.domain.space.Space;
+import com.cn.cloudpictureplatform.domain.space.SpaceType;
+import com.cn.cloudpictureplatform.domain.team.Team;
 import com.cn.cloudpictureplatform.domain.team.TeamMember;
+import com.cn.cloudpictureplatform.domain.team.TeamRole;
 import com.cn.cloudpictureplatform.domain.team.TeamMemberStatus;
 import com.cn.cloudpictureplatform.domain.user.AppUser;
 import com.cn.cloudpictureplatform.domain.user.UserRole;
@@ -49,13 +58,16 @@ import com.cn.cloudpictureplatform.infrastructure.persistence.PictureTagReposito
 import com.cn.cloudpictureplatform.infrastructure.persistence.SpaceRepository;
 import com.cn.cloudpictureplatform.infrastructure.persistence.TagRepository;
 import com.cn.cloudpictureplatform.infrastructure.persistence.TeamMemberRepository;
+import com.cn.cloudpictureplatform.infrastructure.persistence.TeamRepository;
 import com.cn.cloudpictureplatform.interfaces.admin.dto.AdminPictureSummary;
 import com.cn.cloudpictureplatform.interfaces.admin.dto.ModerationRecordResponse;
+import com.cn.cloudpictureplatform.interfaces.picture.dto.PictureDetailResponse;
 import com.cn.cloudpictureplatform.interfaces.picture.dto.PictureTagCreateRequest;
 import com.cn.cloudpictureplatform.interfaces.picture.dto.PictureTagItemRequest;
 import com.cn.cloudpictureplatform.interfaces.picture.dto.PictureTagResponse;
 import com.cn.cloudpictureplatform.interfaces.picture.dto.PictureResponse;
 import com.cn.cloudpictureplatform.interfaces.picture.dto.PictureSummary;
+import com.cn.cloudpictureplatform.websocket.NotificationPublisher;
 
 @Service
 public class PictureService {
@@ -68,6 +80,8 @@ public class PictureService {
     private final TagRepository tagRepository;
     private final SearchIndexService searchIndexService;
     private final TeamMemberRepository teamMemberRepository;
+    private final TeamRepository teamRepository;
+    private final NotificationPublisher notificationPublisher;
 
     public PictureService(
             StorageService storageService,
@@ -78,7 +92,9 @@ public class PictureService {
             PictureTagRepository pictureTagRepository,
             TagRepository tagRepository,
             SearchIndexService searchIndexService,
-            TeamMemberRepository teamMemberRepository
+            TeamMemberRepository teamMemberRepository,
+            TeamRepository teamRepository,
+            NotificationPublisher notificationPublisher
     ) {
         this.storageService = storageService;
         this.pictureAssetRepository = pictureAssetRepository;
@@ -89,16 +105,32 @@ public class PictureService {
         this.tagRepository = tagRepository;
         this.searchIndexService = searchIndexService;
         this.teamMemberRepository = teamMemberRepository;
+        this.teamRepository = teamRepository;
+        this.notificationPublisher = notificationPublisher;
     }
 
     @Transactional
-    @CacheEvict(cacheNames = {"publicGallery", "pictureSearch", "adminPending"}, allEntries = true)
-    public PictureResponse upload(UUID ownerId, MultipartFile file, Visibility visibility, String name) {
+    @CacheEvict(cacheNames = {"publicGallery", "pictureSearch", "adminPending", "pictureRecommendations"}, allEntries = true)
+    public PictureResponse upload(UUID ownerId, MultipartFile file, Visibility visibility, String name, UUID spaceId) {
         if (file == null || file.isEmpty()) {
             throw new ApiException(ApiErrorCode.BAD_REQUEST, "file is empty");
         }
-        Space space = spaceRepository.findByOwnerId(ownerId)
-                .orElseThrow(() -> new ApiException(ApiErrorCode.NOT_FOUND, "space not found"));
+        Space space;
+        if (spaceId == null) {
+            space = spaceRepository.findFirstByOwnerIdAndType(ownerId, SpaceType.PERSONAL)
+                    .orElseThrow(() -> new ApiException(ApiErrorCode.NOT_FOUND, "space not found"));
+        } else {
+            space = spaceRepository.findById(spaceId)
+                    .orElseThrow(() -> new ApiException(ApiErrorCode.NOT_FOUND, "space not found"));
+            if (space.getType() != SpaceType.TEAM) {
+                throw new ApiException(ApiErrorCode.BAD_REQUEST, "invalid target space");
+            }
+            TeamMember member = teamMemberRepository.findByTeamIdAndUserId(space.getTeamId(), ownerId)
+                    .orElseThrow(() -> new ApiException(ApiErrorCode.FORBIDDEN, "not a member of this team"));
+            if (member.getStatus() != TeamMemberStatus.ACTIVE) {
+                throw new ApiException(ApiErrorCode.FORBIDDEN, "not an active team member");
+            }
+        }
 
         String originalFilename = StringUtils.hasText(file.getOriginalFilename())
                 ? file.getOriginalFilename()
@@ -146,12 +178,126 @@ public class PictureService {
         spaceRepository.save(space);
 
         searchIndexService.enqueuePicture(saved.getId());
+        notifyUploadRelatedParties(saved, space, ownerId);
 
         return toResponse(saved);
     }
 
+    public PictureDetailResponse getPictureDetail(UUID pictureId, UUID requesterId, UserRole requesterRole) {
+        PictureAsset asset = pictureAssetRepository.findById(pictureId)
+                .orElseThrow(() -> new ApiException(ApiErrorCode.NOT_FOUND, "picture not found"));
+        Space space = spaceRepository.findById(asset.getSpaceId())
+                .orElseThrow(() -> new ApiException(ApiErrorCode.NOT_FOUND, "space not found"));
+        boolean isAdmin = requesterRole == UserRole.ADMIN;
+        TeamMember activeTeamMember = resolveActiveTeamMember(space, requesterId);
+        if (!canView(asset, space, requesterId, isAdmin, activeTeamMember)) {
+            throw new ApiException(ApiErrorCode.FORBIDDEN, "insufficient permissions");
+        }
+
+        AppUser owner = appUserRepository.findById(asset.getOwnerId()).orElse(null);
+        Team team = space.getTeamId() == null ? null : teamRepository.findById(space.getTeamId()).orElse(null);
+        List<PictureTagResponse> tags = pictureTagRepository.findByPictureAssetIdOrderByCreatedAtDesc(pictureId).stream()
+                .map(this::toTagResponse)
+                .toList();
+
+        boolean isOwner = requesterId != null && requesterId.equals(asset.getOwnerId());
+        boolean canEdit = isAdmin || isOwner || activeTeamMember != null;
+        boolean canManage = isAdmin || isOwner
+                || (activeTeamMember != null
+                && (activeTeamMember.getRole() == TeamRole.OWNER || activeTeamMember.getRole() == TeamRole.ADMIN));
+
+        return PictureDetailResponse.builder()
+                .id(asset.getId())
+                .name(asset.getName())
+                .originalFilename(asset.getOriginalFilename())
+                .url(asset.getUrl())
+                .contentType(asset.getContentType())
+                .sizeBytes(asset.getSizeBytes())
+                .checksum(asset.getChecksum())
+                .width(asset.getWidth())
+                .height(asset.getHeight())
+                .visibility(asset.getVisibility())
+                .reviewStatus(asset.getReviewStatus())
+                .ownerId(asset.getOwnerId())
+                .ownerUsername(owner == null ? null : owner.getUsername())
+                .ownerDisplayName(owner == null ? null : owner.getDisplayName())
+                .spaceId(space.getId())
+                .spaceName(space.getName())
+                .spaceType(space.getType())
+                .teamId(space.getTeamId())
+                .teamName(team == null ? null : team.getName())
+                .createdAt(asset.getCreatedAt())
+                .updatedAt(asset.getUpdatedAt())
+                .canEdit(canEdit)
+                .canManage(canManage)
+                .canJoinCollaboration(space.getType() == SpaceType.TEAM && canEdit)
+                .tags(tags)
+                .build();
+    }
+
     public PageResponse<PictureSummary> listPublic(int page, int size) {
         return listPublic(page, size, null, null, null, null);
+    }
+
+    @Cacheable(cacheNames = "pictureRecommendations",
+            key = "T(java.util.Arrays).asList(#page, #size, #requesterId)")
+    public PageResponse<PictureSummary> recommendPublic(int page, int size, UUID requesterId) {
+        int pageIndex = Math.max(0, page);
+        int pageSize = Math.min(Math.max(1, size), 100);
+
+        LinkedHashMap<String, Integer> interestTagWeights = resolveInterestTagWeights(requesterId);
+
+        if (interestTagWeights.isEmpty()) {
+            return listPublic(pageIndex, pageSize);
+        }
+
+        List<UUID> candidateIds = pictureTagRepository.findRecommendedPictureCandidateIds(
+                new ArrayList<>(interestTagWeights.keySet()),
+                requesterId
+        );
+
+        if (candidateIds.isEmpty()) {
+            return listPublic(pageIndex, pageSize);
+        }
+
+        Map<UUID, PictureAsset> assetMap = pictureAssetRepository.findAllById(candidateIds)
+                .stream().collect(Collectors.toMap(PictureAsset::getId, a -> a));
+        Map<UUID, Set<String>> tagMap = pictureTagRepository.findByPictureAssetIdIn(candidateIds).stream()
+                .collect(Collectors.groupingBy(
+                        PictureTag::getPictureAssetId,
+                        Collectors.mapping(
+                                tag -> normalizeTagText(tag.getTagText()),
+                                Collectors.filtering(StringUtils::hasText, Collectors.toSet())
+                        )
+                ));
+        List<PictureAsset> rankedAssets = candidateIds.stream()
+                .map(assetMap::get)
+                .filter(Objects::nonNull)
+                .sorted(Comparator
+                        .comparingDouble((PictureAsset asset) ->
+                                recommendationScore(asset, tagMap.getOrDefault(asset.getId(), Set.of()), interestTagWeights))
+                        .reversed()
+                        .thenComparing(PictureAsset::getCreatedAt, Comparator.nullsLast(Comparator.reverseOrder())))
+                .toList();
+
+        int fromIndex = Math.min(pageIndex * pageSize, rankedAssets.size());
+        int toIndex = Math.min(fromIndex + pageSize, rankedAssets.size());
+        List<PictureSummary> items = rankedAssets.subList(fromIndex, toIndex).stream()
+                .map(this::toSummary)
+                .toList();
+
+        return new PageResponse<>(items, rankedAssets.size(), pageIndex, pageSize);
+    }
+
+    private LinkedHashMap<String, Integer> resolveInterestTagWeights(UUID requesterId) {
+        Pageable top20 = PageRequest.of(0, 20);
+        if (requesterId != null) {
+            List<String> userTags = pictureTagRepository.findTopTagTextsByOwnerId(requesterId, top20);
+            if (!userTags.isEmpty()) {
+                return rankInterestTags(userTags);
+            }
+        }
+        return rankInterestTags(pictureTagRepository.findPopularTagTexts(top20));
     }
 
     @Cacheable(
@@ -168,14 +314,19 @@ public class PictureService {
     ) {
         int pageIndex = Math.max(0, page);
         int pageSize = Math.min(Math.max(1, size), 100);
-        var pageable = PageRequest.of(pageIndex, pageSize, Sort.by("createdAt").descending());
+        String normalizedKeyword = normalizeKeyword(keyword);
+        Sort sort = resolveKeywordAwareSort(normalizedKeyword, null, null);
+        var pageable = sort.isSorted()
+                ? PageRequest.of(pageIndex, pageSize, sort)
+                : PageRequest.of(pageIndex, pageSize);
         Specification<PictureAsset> spec = (root, query, builder) -> {
             List<Predicate> predicates = new ArrayList<>();
             predicates.add(builder.equal(root.get("visibility"), Visibility.PUBLIC));
             predicates.add(builder.equal(root.get("reviewStatus"), ReviewStatus.APPROVED));
-            if (StringUtils.hasText(keyword)) {
-                String likeValue = "%" + keyword.trim().toLowerCase() + "%";
+            if (StringUtils.hasText(normalizedKeyword)) {
+                String likeValue = "%" + normalizedKeyword + "%";
                 predicates.add(builder.like(builder.lower(root.get("name")), likeValue));
+                applyKeywordOrdering(query, builder, root, normalizedKeyword, likeValue);
             }
             if (minSizeBytes != null) {
                 predicates.add(builder.greaterThanOrEqualTo(root.get("sizeBytes"), minSizeBytes));
@@ -258,23 +409,28 @@ public class PictureService {
     ) {
         int pageIndex = Math.max(0, page);
         int pageSize = Math.min(Math.max(1, size), 100);
-        Sort sort = resolvePictureSort(sortBy, sortDir);
+        String normalizedKeyword = normalizeKeyword(keyword);
+        Sort sort = resolveKeywordAwareSort(normalizedKeyword, sortBy, sortDir);
         var pageable = PageRequest.of(pageIndex, pageSize, sort);
         boolean isAdmin = requesterRole == UserRole.ADMIN;
         List<UUID> teamSpaceIds = resolveTeamSpaceIds(isAdmin, requesterId);
         Specification<PictureAsset> spec = (root, query, builder) -> {
             List<Predicate> predicates = new ArrayList<>();
             if (!isAdmin) {
+                Predicate publicApproved = builder.and(
+                        builder.equal(root.get("visibility"), Visibility.PUBLIC),
+                        builder.equal(root.get("reviewStatus"), ReviewStatus.APPROVED)
+                );
                 if (requesterId == null) {
-                    predicates.add(builder.disjunction());
+                    predicates.add(publicApproved);
                 } else {
                     Predicate ownerPredicate = builder.equal(root.get("ownerId"), requesterId);
                     if (teamSpaceIds.isEmpty()) {
-                        predicates.add(ownerPredicate);
+                        predicates.add(builder.or(ownerPredicate, publicApproved));
                     } else {
                         Predicate spacePredicate = root.get("spaceId").in(teamSpaceIds);
                         Predicate nonPrivate = builder.notEqual(root.get("visibility"), Visibility.PRIVATE);
-                        predicates.add(builder.or(ownerPredicate, builder.and(spacePredicate, nonPrivate)));
+                        predicates.add(builder.or(ownerPredicate, builder.and(spacePredicate, nonPrivate), publicApproved));
                     }
                 }
             }
@@ -290,12 +446,14 @@ public class PictureService {
             if (reviewStatus != null) {
                 predicates.add(builder.equal(root.get("reviewStatus"), reviewStatus));
             }
-            if (StringUtils.hasText(keyword)) {
-                String likeValue = "%" + keyword.trim().toLowerCase() + "%";
+            if (StringUtils.hasText(normalizedKeyword)) {
+                String likeValue = "%" + normalizedKeyword + "%";
                 predicates.add(builder.or(
                         builder.like(builder.lower(root.get("name")), likeValue),
+                        builder.like(builder.lower(root.get("originalFilename")), likeValue),
                         builder.exists(buildSearchSubquery(query, builder, root, likeValue))
                 ));
+                applyKeywordOrdering(query, builder, root, normalizedKeyword, likeValue);
             }
             if (minSizeBytes != null) {
                 predicates.add(builder.greaterThanOrEqualTo(root.get("sizeBytes"), minSizeBytes));
@@ -452,7 +610,7 @@ public class PictureService {
     }
 
     @Transactional
-    @CacheEvict(cacheNames = {"publicGallery", "pictureSearch", "adminPending", "moderationHistory"}, allEntries = true)
+    @CacheEvict(cacheNames = {"publicGallery", "pictureSearch", "adminPending", "moderationHistory", "pictureRecommendations"}, allEntries = true)
     public PictureResponse review(UUID pictureId, UUID reviewerId, ReviewStatus status, String reason) {
         if (status == null || status == ReviewStatus.PENDING) {
             throw new ApiException(ApiErrorCode.BAD_REQUEST, "invalid review status");
@@ -480,6 +638,14 @@ public class PictureService {
         moderationRecordRepository.save(record);
 
         searchIndexService.enqueuePicture(saved.getId());
+        AppUser owner = appUserRepository.findById(saved.getOwnerId()).orElse(null);
+        notificationPublisher.notifyReviewDecision(
+                owner == null ? null : owner.getUsername(),
+                saved.getId(),
+                saved.getName(),
+                status == ReviewStatus.APPROVED,
+                record.getReason()
+        );
 
         return toResponse(saved);
     }
@@ -492,7 +658,7 @@ public class PictureService {
     }
 
     @Transactional
-    @CacheEvict(cacheNames = "pictureSearch", allEntries = true)
+    @CacheEvict(cacheNames = {"pictureSearch", "pictureRecommendations"}, allEntries = true)
     public List<PictureTagResponse> addTags(UUID pictureId, PictureTagCreateRequest request) {
         if (request == null || request.getTags() == null || request.getTags().isEmpty()) {
             throw new ApiException(ApiErrorCode.BAD_REQUEST, "tags are required");
@@ -537,7 +703,7 @@ public class PictureService {
     }
 
     @Transactional
-    @CacheEvict(cacheNames = "pictureSearch", allEntries = true)
+    @CacheEvict(cacheNames = {"pictureSearch", "pictureRecommendations"}, allEntries = true)
     public void removeTag(UUID pictureId, UUID tagId) {
         verifyPictureExists(pictureId);
         PictureTag tag = pictureTagRepository.findById(tagId)
@@ -640,6 +806,40 @@ public class PictureService {
                 .build();
     }
 
+    private void notifyUploadRelatedParties(PictureAsset asset, Space space, UUID ownerId) {
+        AppUser owner = appUserRepository.findById(ownerId).orElse(null);
+        String ownerUsername = owner == null ? null : owner.getUsername();
+        notificationPublisher.notifyUploadCompleted(ownerUsername, asset.getId(), asset.getName());
+
+        if (asset.getVisibility() == Visibility.PUBLIC) {
+            notificationPublisher.notifyAdminNewUpload(
+                    asset.getId(),
+                    asset.getName(),
+                    ownerUsername == null ? "unknown" : ownerUsername
+            );
+        }
+
+        if (space.getType() == SpaceType.TEAM && space.getTeamId() != null) {
+            Collection<String> usernames = teamMemberRepository.findByTeamIdAndStatus(
+                            space.getTeamId(),
+                            TeamMemberStatus.ACTIVE
+                    ).stream()
+                    .map(TeamMember::getUserId)
+                    .filter(userId -> !userId.equals(ownerId))
+                    .map(userId -> appUserRepository.findById(userId).orElse(null))
+                    .filter(Objects::nonNull)
+                    .map(AppUser::getUsername)
+                    .filter(StringUtils::hasText)
+                    .toList();
+            notificationPublisher.notifyTeamPictureUploaded(
+                    usernames,
+                    asset.getId(),
+                    asset.getName(),
+                    ownerUsername == null ? "unknown" : ownerUsername
+            );
+        }
+    }
+
     private PictureTagResponse toTagResponse(PictureTag tag) {
         return PictureTagResponse.builder()
                 .id(tag.getId())
@@ -685,6 +885,52 @@ public class PictureService {
             }
         }
         return Sort.by(direction, resolvedSortBy);
+    }
+
+    private Sort resolveKeywordAwareSort(String keyword, String sortBy, String sortDir) {
+        if (!StringUtils.hasText(sortBy) && StringUtils.hasText(keyword)) {
+            return Sort.unsorted();
+        }
+        if (!StringUtils.hasText(sortBy)) {
+            return Sort.by("createdAt").descending();
+        }
+        return resolvePictureSort(sortBy, sortDir);
+    }
+
+    private void applyKeywordOrdering(
+            jakarta.persistence.criteria.CriteriaQuery<?> query,
+            jakarta.persistence.criteria.CriteriaBuilder builder,
+            jakarta.persistence.criteria.Root<PictureAsset> root,
+            String normalizedKeyword,
+            String likeValue
+    ) {
+        if (query == null || !StringUtils.hasText(normalizedKeyword)) {
+            return;
+        }
+        Expression<Integer> exactNameScore = builder.<Integer>selectCase()
+                .when(builder.equal(builder.lower(root.get("name")), normalizedKeyword), 120)
+                .otherwise(0);
+        Expression<Integer> prefixNameScore = builder.<Integer>selectCase()
+                .when(builder.like(builder.lower(root.get("name")), normalizedKeyword + "%"), 70)
+                .otherwise(0);
+        Expression<Integer> containsNameScore = builder.<Integer>selectCase()
+                .when(builder.like(builder.lower(root.get("name")), likeValue), 40)
+                .otherwise(0);
+        Expression<Integer> filenameScore = builder.<Integer>selectCase()
+                .when(builder.like(builder.lower(root.get("originalFilename")), likeValue), 20)
+                .otherwise(0);
+        Expression<Integer> documentScore = builder.<Integer>selectCase()
+                .when(builder.exists(buildSearchSubquery(query, builder, root, likeValue)), 12)
+                .otherwise(0);
+        Expression<Integer> relevanceScore = builder.sum(
+                builder.sum(exactNameScore, prefixNameScore),
+                builder.sum(containsNameScore, builder.sum(filenameScore, documentScore))
+        );
+        query.orderBy(
+                builder.desc(relevanceScore),
+                builder.desc(root.get("updatedAt")),
+                builder.desc(root.get("createdAt"))
+        );
     }
 
     private Specification<ModerationRecord> buildModerationSpec(
@@ -768,10 +1014,93 @@ public class PictureService {
         }
     }
 
+    private TeamMember resolveActiveTeamMember(Space space, UUID requesterId) {
+        if (space.getType() != SpaceType.TEAM || space.getTeamId() == null || requesterId == null) {
+            return null;
+        }
+        return teamMemberRepository.findByTeamIdAndUserId(space.getTeamId(), requesterId)
+                .filter(member -> member.getStatus() == TeamMemberStatus.ACTIVE)
+                .orElse(null);
+    }
+
+    private boolean canView(
+            PictureAsset asset,
+            Space space,
+            UUID requesterId,
+            boolean isAdmin,
+            TeamMember activeTeamMember
+    ) {
+        if (isAdmin) {
+            return true;
+        }
+        if (requesterId != null && requesterId.equals(asset.getOwnerId())) {
+            return true;
+        }
+        if (asset.getVisibility() == Visibility.PUBLIC && asset.getReviewStatus() == ReviewStatus.APPROVED) {
+            return true;
+        }
+        if (space.getType() == SpaceType.TEAM && activeTeamMember != null && asset.getVisibility() != Visibility.PRIVATE) {
+            return true;
+        }
+        return false;
+    }
+
     private String buildTagKey(String tagText, String provider, boolean autoGenerated) {
         String normalizedText = tagText == null ? "" : tagText.trim().toLowerCase();
         String normalizedProvider = provider == null ? "" : provider.trim().toLowerCase();
         return normalizedText + "|" + normalizedProvider + "|" + autoGenerated;
+    }
+
+    private LinkedHashMap<String, Integer> rankInterestTags(List<String> tagTexts) {
+        LinkedHashMap<String, Integer> weightedTags = new LinkedHashMap<>();
+        int rank = 0;
+        for (String tagText : tagTexts) {
+            String normalizedTag = normalizeTagText(tagText);
+            if (!StringUtils.hasText(normalizedTag) || weightedTags.containsKey(normalizedTag)) {
+                continue;
+            }
+            weightedTags.put(normalizedTag, Math.max(1, 24 - rank));
+            rank += 1;
+        }
+        return weightedTags;
+    }
+
+    private String normalizeTagText(String tagText) {
+        return tagText == null ? null : tagText.trim().toLowerCase();
+    }
+
+    private String normalizeKeyword(String keyword) {
+        return StringUtils.hasText(keyword) ? keyword.trim().toLowerCase() : null;
+    }
+
+    private double recommendationScore(
+            PictureAsset asset,
+            Set<String> pictureTags,
+            LinkedHashMap<String, Integer> interestTagWeights
+    ) {
+        double score = 0D;
+        for (Map.Entry<String, Integer> entry : interestTagWeights.entrySet()) {
+            if (pictureTags.contains(entry.getKey())) {
+                score += entry.getValue();
+            }
+        }
+        if (asset.getCreatedAt() != null) {
+            long ageDays = Math.max(0L, java.time.Duration.between(asset.getCreatedAt(), Instant.now()).toDays());
+            score += Math.max(0D, 20D - Math.min(ageDays, 20L));
+        }
+        return score;
+    }
+
+    private PictureSummary toSummary(PictureAsset asset) {
+        return new PictureSummary(
+                asset.getId(),
+                asset.getName(),
+                asset.getUrl(),
+                asset.getVisibility(),
+                asset.getSizeBytes(),
+                asset.getWidth(),
+                asset.getHeight()
+        );
     }
 
     private Tag findOrCreateTag(String name) {

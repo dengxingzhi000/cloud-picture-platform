@@ -62,6 +62,9 @@ public class PictureAsset extends BaseEntity {
     @Column(length = 500)
     private String url;
 
+    @Column(name = "file_content_id", columnDefinition = "uuid")
+    private UUID fileContentId;
+
     @Column
     private Integer width;
 

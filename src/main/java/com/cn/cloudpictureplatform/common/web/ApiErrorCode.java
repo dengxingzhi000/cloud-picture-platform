@@ -8,6 +8,7 @@ public enum ApiErrorCode {
     BAD_REQUEST("BAD_REQUEST", "bad request"),
     UNAUTHORIZED("UNAUTHORIZED", "unauthorized"),
     FORBIDDEN("FORBIDDEN", "forbidden"),
+    CONFLICT("CONFLICT", "conflict"),
     NOT_FOUND("NOT_FOUND", "not found"),
     SERVER_ERROR("SERVER_ERROR", "server error");
 

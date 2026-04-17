@@ -8,6 +8,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -34,15 +35,20 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             if (jwtTokenService.isTokenValid(token)
                     && SecurityContextHolder.getContext().getAuthentication() == null) {
                 String username = jwtTokenService.extractUsername(token);
-                var userDetails = appUserDetailsService.loadUserByUsername(username);
-                if (userDetails.isEnabled()) {
-                    var authentication = new UsernamePasswordAuthenticationToken(
-                            userDetails,
-                            null,
-                            userDetails.getAuthorities()
-                    );
-                    authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                    SecurityContextHolder.getContext().setAuthentication(authentication);
+                try {
+                    var userDetails = appUserDetailsService.loadUserByUsername(username);
+                    if (userDetails.isEnabled()) {
+                        var authentication = new UsernamePasswordAuthenticationToken(
+                                userDetails,
+                                null,
+                                userDetails.getAuthorities()
+                        );
+                        authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                        SecurityContextHolder.getContext().setAuthentication(authentication);
+                    }
+                } catch (UsernameNotFoundException ignored) {
+                    // Token is valid but user no longer exists (e.g. in-memory DB restart).
+                    // Proceed as unauthenticated — downstream security rules will reject if needed.
                 }
             }
         }
