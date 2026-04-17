@@ -38,4 +38,18 @@ public class LocalStorageService implements StorageService {
         String url = "/uploads/" + key.replace("\\", "/");
         return new StorageResult(key, url, file.getSize(), file.getContentType());
     }
+
+    @Override
+    public boolean delete(String key) {
+        Path root = Paths.get(storageProperties.getLocal().getRoot()).toAbsolutePath().normalize();
+        Path target = root.resolve(key).normalize();
+        if (!target.startsWith(root)) {
+            return false;
+        }
+        try {
+            return Files.deleteIfExists(target);
+        } catch (IOException ex) {
+            return false;
+        }
+    }
 }

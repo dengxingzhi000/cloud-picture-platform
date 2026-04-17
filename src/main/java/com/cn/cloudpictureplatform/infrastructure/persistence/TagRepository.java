@@ -8,7 +8,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import com.cn.cloudpictureplatform.domain.picture.Tag;
 
 public interface TagRepository extends JpaRepository<Tag, UUID> {
-
     Optional<Tag> findByNameIgnoreCase(String name);
 
     Page<Tag> findByNameContainingIgnoreCase(String name, Pageable pageable);

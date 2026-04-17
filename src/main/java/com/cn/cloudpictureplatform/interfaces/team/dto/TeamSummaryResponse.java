@@ -17,6 +17,7 @@ public class TeamSummaryResponse {
     private UUID id;
     private String name;
     private UUID ownerId;
+    private UUID spaceId;
     private TeamRole role;
     private long memberCount;
     private Instant createdAt;

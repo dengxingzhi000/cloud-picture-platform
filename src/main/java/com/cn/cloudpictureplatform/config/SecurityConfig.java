@@ -29,7 +29,11 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/register", "/api/auth/login", "/actuator/health").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/pictures/public").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/pictures/search").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/pictures/recommendations").permitAll()
                         .requestMatchers(HttpMethod.GET, "/uploads/**").permitAll()
+                        // WebSocket handshake and SockJS transport endpoints
+                        .requestMatchers("/ws/**").permitAll()
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 )

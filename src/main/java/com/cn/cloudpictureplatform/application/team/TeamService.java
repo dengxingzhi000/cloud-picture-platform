@@ -1,12 +1,7 @@
 package com.cn.cloudpictureplatform.application.team;
 
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import jakarta.persistence.criteria.Predicate;
@@ -42,6 +37,7 @@ import com.cn.cloudpictureplatform.interfaces.team.dto.TeamResponse;
 import com.cn.cloudpictureplatform.interfaces.team.dto.TeamRoleUpdateRequest;
 import com.cn.cloudpictureplatform.interfaces.team.dto.TeamSummaryResponse;
 import com.cn.cloudpictureplatform.interfaces.team.dto.TeamUpdateRequest;
+import com.cn.cloudpictureplatform.websocket.NotificationPublisher;
 
 @Service
 public class TeamService {
@@ -50,19 +46,22 @@ public class TeamService {
     private final TeamMemberEventRepository teamMemberEventRepository;
     private final SpaceRepository spaceRepository;
     private final AppUserRepository appUserRepository;
+    private final NotificationPublisher notificationPublisher;
 
     public TeamService(
             TeamRepository teamRepository,
             TeamMemberRepository teamMemberRepository,
             TeamMemberEventRepository teamMemberEventRepository,
             SpaceRepository spaceRepository,
-            AppUserRepository appUserRepository
+            AppUserRepository appUserRepository,
+            NotificationPublisher notificationPublisher
     ) {
         this.teamRepository = teamRepository;
         this.teamMemberRepository = teamMemberRepository;
         this.teamMemberEventRepository = teamMemberEventRepository;
         this.spaceRepository = spaceRepository;
         this.appUserRepository = appUserRepository;
+        this.notificationPublisher = notificationPublisher;
     }
 
     @Transactional
@@ -118,6 +117,8 @@ public class TeamService {
         }
         List<UUID> teamIds = memberships.stream().map(TeamMember::getTeamId).toList();
         Map<UUID, Team> teamMap = buildTeamMap(teamIds);
+        Map<UUID, UUID> teamSpaceMap = spaceRepository.findByTeamIdIn(teamIds).stream()
+                .collect(Collectors.toMap(Space::getTeamId, Space::getId));
 
         List<TeamSummaryResponse> responses = new ArrayList<>();
         for (TeamMember membership : memberships) {
@@ -131,6 +132,7 @@ public class TeamService {
                     .id(team.getId())
                     .name(team.getName())
                     .ownerId(team.getOwnerId())
+                    .spaceId(teamSpaceMap.get(team.getId()))
                     .role(membership.getRole())
                     .memberCount(memberCount)
                     .createdAt(team.getCreatedAt())
@@ -307,6 +309,15 @@ public class TeamService {
                 .build();
         TeamMember savedMember = teamMemberRepository.save(member);
         recordEvent(teamId, invitee.getId(), inviterId, TeamMemberEventType.INVITED, role);
+        Team team = teamRepository.findById(teamId)
+                .orElseThrow(() -> new ApiException(ApiErrorCode.NOT_FOUND, "team not found"));
+        AppUser inviterUser = appUserRepository.findById(inviterId).orElse(null);
+        notificationPublisher.notifyTeamInvite(
+                invitee.getUsername(),
+                teamId,
+                team.getName(),
+                inviterUser == null ? "unknown" : inviterUser.getUsername()
+        );
         return toMemberResponse(savedMember, invitee);
     }
 
@@ -661,7 +672,7 @@ public class TeamService {
 
     private Map<UUID, AppUser> buildUserMapByIds(List<UUID> userIds) {
         if (userIds == null || userIds.isEmpty()) {
-            return Map.of();
+            return new HashMap<>();
         }
         return appUserRepository.findAllById(userIds).stream()
                 .collect(Collectors.toMap(AppUser::getId, Function.identity()));
@@ -669,7 +680,7 @@ public class TeamService {
 
     private Map<UUID, Team> buildTeamMap(List<UUID> teamIds) {
         if (teamIds == null || teamIds.isEmpty()) {
-            return Map.of();
+            return new HashMap<>();
         }
         return teamRepository.findAllById(teamIds).stream()
                 .collect(Collectors.toMap(Team::getId, Function.identity()));

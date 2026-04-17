@@ -1,5 +1,6 @@
 package com.cn.cloudpictureplatform.infrastructure.persistence;
 
+import java.util.List;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -17,4 +18,8 @@ public interface PictureAssetRepository extends JpaRepository<PictureAsset, UUID
     );
 
     Page<PictureAsset> findByReviewStatus(ReviewStatus reviewStatus, Pageable pageable);
+
+    List<PictureAsset> findByFileContentId(UUID fileContentId);
+
+    Page<PictureAsset> findByOwnerIdAndChecksum(UUID ownerId, String checksum, Pageable pageable);
 }

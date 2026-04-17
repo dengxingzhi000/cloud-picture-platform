@@ -23,10 +23,12 @@ The codebase follows DDD layering under `com.cn.cloudpictureplatform`:
 
 - **`domain/`** — JPA entities and enums (the core model). No Spring services here.
 - **`application/`** — Use-case services that orchestrate domain objects: `AuthService`, `PictureService`, `TagService`, `TeamService`, `SearchIndexService`.
-- **`infrastructure/`** — Technical implementations: JPA repositories (`persistence/`), JWT + Spring Security (`security/`), storage adapters (`storage/`).
+- **`infrastructure/`** — Technical implementations: JPA repositories (`persistence/`), JWT + Spring Security (`security/`), storage adapters (`storage/`), search indexing (`search/DatabaseSearchIndexService`).
 - **`interfaces/`** — REST controllers and DTOs, grouped by feature: `auth/`, `picture/`, `tag/`, `team/`, `admin/`.
 - **`common/`** — Shared `BaseEntity` (UUID PK, audit timestamps), `ApiResponse`/`PageResponse` wrappers, `ApiException`, `GlobalExceptionHandler`.
-- **`config/`** — Spring `@Configuration` classes for security, caching, JPA auditing, storage, JWT properties.
+- **`config/`** — Spring `@Configuration` classes for security, caching, JPA auditing, storage, JWT properties, search index scheduling, and CORS (`WebConfig`).
+- **`websocket/`** — Placeholder package; `spring-boot-starter-websocket` is on the classpath and endpoint `/ws` is configured (P4 scaffolding, not yet implemented).
+- **`domain/ai/`, `domain/analytics/`, `domain/notification/`, `domain/permission/`** — Empty placeholder packages reserved for P4/P5 features.
 
 ### Key Domain Entities
 
@@ -48,11 +50,16 @@ Registration creates a `PERSONAL` Space automatically. Team creation creates a `
 - **`PictureService`**: upload (checksum, dimension extraction), gallery listing with caching, JPA Specification-based search (tags, visibility, date range, orientation), moderation workflow, tag attachment.
 - **`TagService`**: tag catalog CRUD; renaming propagates to all `PictureTag` records; blocks deletion of in-use tags.
 - **`TeamService`**: team CRUD, invite/accept/reject workflow, role changes, member event logging.
-- **`AuthService`**: register, login (returns JWT), profile update.
+- **`SearchIndexService`** / **`SearchMaintenanceService`**: build and maintain the `PictureSearchDocument` table; `DatabaseSearchIndexService` is the concrete infrastructure impl.
+- **`AuthService`**: register, login (returns JWT, TTL 7200s), profile update.
+
+### Upload Limits
+
+Multipart: 50 MB per file, 200 MB per request (configurable via `spring.servlet.multipart.*`).
 
 ### Caching
 
-Two-level: Caffeine (L1) + Redis (L2). Named caches used: `publicGallery`, `pictureSearch`, `adminPending`, `moderationHistory`. `FallbackCacheManager` wraps Redis to degrade gracefully when unavailable.
+Two-level: Caffeine (L1) + Redis (L2). Named caches used: `publicGallery`, `pictureSearch`, `adminPending`, `moderationHistory`, `tagCatalog`. `FallbackCacheManager` wraps Redis to degrade gracefully when unavailable.
 
 ### Storage Abstraction
 
@@ -73,10 +80,17 @@ Default: H2 in-memory (dev). Production: PostgreSQL. Schema managed by Flyway (`
 - Lombok for data classes (`@Data`, `@Builder`, etc.)
 - DTOs named `*Request` / `*Response`; enums use `UPPER_SNAKE_CASE`
 - 4-space indentation, no tabs
-- Commit format: `feat(module): short imperative description`
+- `domain/` layer must not import or depend on Spring beans — pure Java only
+- New features require unit tests (JUnit 5 + Spring Boot Test)
+- Commit format: `feat(module): 中文描述` (use Chinese for commit messages per project convention)
 
 ## Configuration Notes
 
 - JWT secret (`app.security.jwt.secret`) defaults to an insecure placeholder — must be overridden in production.
-- Redis host is `192.168.18.145:6379` by default; adjust or disable if unavailable.
+- Redis host is `192.168.18.149:6379` by default; adjust or disable if unavailable.
 - COS credentials are in `app.storage.cos.*`; storage provider switches via `app.storage.provider`.
+- Frontend lives in a separate repo at `D:\ProgramProject\cloud-picture-platform-web` (see `FRONTEND_PATH.md`).
+
+## Roadmap Context
+
+P1 (auth, upload, gallery, moderation, team basics) is complete. Planned: P2 (EXIF, full-text search, batch ops), P3 (quota lifecycle, shared albums, versioning), P4 (WebSocket real-time), P5 (analytics, AI auto-tagging, similarity clustering).

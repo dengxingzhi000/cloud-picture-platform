@@ -63,6 +63,10 @@ public class CacheConfig {
                         "moderationHistory",
                         redisCacheConfiguration.entryTtl(Duration.ofSeconds(30))
                 )
+                .withCacheConfiguration(
+                        "pictureRecommendations",
+                        redisCacheConfiguration.entryTtl(Duration.ofMinutes(5))
+                )
                 .build();
     }
 
@@ -74,7 +78,8 @@ public class CacheConfig {
                 buildCaffeineCache("tagCatalog", Duration.ofMinutes(30), 5000),
                 buildCaffeineCache("pictureSearch", Duration.ofSeconds(30), 3000),
                 buildCaffeineCache("adminPending", Duration.ofSeconds(30), 1000),
-                buildCaffeineCache("moderationHistory", Duration.ofSeconds(30), 1000)
+                buildCaffeineCache("moderationHistory", Duration.ofSeconds(30), 1000),
+                buildCaffeineCache("pictureRecommendations", Duration.ofMinutes(5), 2000)
         ));
         return manager;
     }

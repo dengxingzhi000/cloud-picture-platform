@@ -64,6 +64,17 @@ public class CosStorageService implements StorageService {
         return new StorageResult(objectKey, url, file.getSize(), file.getContentType());
     }
 
+    @Override
+    public boolean delete(String key) {
+        String objectKey = key.startsWith(prefix) ? key : prefix + key;
+        try {
+            cosClient.deleteObject(bucket, objectKey);
+            return true;
+        } catch (Exception ex) {
+            return false;
+        }
+    }
+
     @PreDestroy
     public void shutdown() {
         cosClient.shutdown();

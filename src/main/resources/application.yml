@@ -20,7 +20,7 @@ spring:
     baseline-on-migrate: false
   data:
     redis:
-      host: 192.168.18.145
+      host: 192.168.18.150
       port: 6379
   cache:
     type: redis
@@ -32,6 +32,9 @@ spring:
       max-request-size: 200MB
 
 app:
+  bootstrap:
+    admin:
+      enabled: true
   storage:
     provider: local
     local:
@@ -46,6 +49,13 @@ app:
       prefix:
   websocket:
     endpoint: /ws
+  collaboration:
+    provider: yjs-websocket
+    room-prefix: picture
+    public-url: ${COLLAB_SERVER_URL:ws://localhost:1234}
+    room-token-ttl-seconds: 900
+    awareness-enabled: true
+    indexed-db-recommended: true
   security:
     jwt:
       issuer: cloud-picture-platform

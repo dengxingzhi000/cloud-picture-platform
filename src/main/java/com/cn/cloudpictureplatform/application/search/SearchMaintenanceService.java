@@ -1,12 +1,14 @@
 package com.cn.cloudpictureplatform.application.search;
 
 import java.util.UUID;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import com.cn.cloudpictureplatform.domain.picture.PictureAsset;
 import com.cn.cloudpictureplatform.infrastructure.persistence.PictureAssetRepository;
 
+@Slf4j
 @Service
 public class SearchMaintenanceService {
     private static final int DEFAULT_PAGE_SIZE = 500;
@@ -35,6 +37,16 @@ public class SearchMaintenanceService {
             }
             page += 1;
         } while (result.hasNext());
+        log.info("Queued {} pictures for search reindex", total);
         return total;
+    }
+
+    public boolean enqueuePicture(UUID pictureId) {
+        if (pictureId == null || !pictureAssetRepository.existsById(pictureId)) {
+            return false;
+        }
+        searchIndexService.enqueuePicture(pictureId);
+        log.info("Queued picture {} for search reindex", pictureId);
+        return true;
     }
 }

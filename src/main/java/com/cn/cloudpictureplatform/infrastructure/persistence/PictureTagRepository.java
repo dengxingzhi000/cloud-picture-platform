@@ -1,17 +1,22 @@
 package com.cn.cloudpictureplatform.infrastructure.persistence;
 
 import com.cn.cloudpictureplatform.domain.picture.PictureTag;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 
 @Repository
 public interface PictureTagRepository extends JpaRepository<PictureTag, UUID> {
     List<PictureTag> findByPictureAssetId(UUID pictureAssetId);
+
+    List<PictureTag> findByPictureAssetIdIn(Collection<UUID> pictureAssetIds);
 
     List<PictureTag> findByPictureAssetIdOrderByCreatedAtDesc(UUID pictureAssetId);
 
@@ -23,4 +28,62 @@ public interface PictureTagRepository extends JpaRepository<PictureTag, UUID> {
     long countByTagId(UUID tagId);
 
     void deleteByPictureAssetId(UUID pictureAssetId);
+
+    @Query("""
+            SELECT pt.tagText FROM PictureTag pt
+            JOIN PictureAsset pa ON pa.id = pt.pictureAssetId
+            WHERE pa.ownerId = :ownerId
+            GROUP BY pt.tagText ORDER BY COUNT(*) DESC
+            """)
+    List<String> findTopTagTextsByOwnerId(@Param("ownerId") UUID ownerId, Pageable pageable);
+
+    @Query("""
+            SELECT pt.tagText FROM PictureTag pt
+            JOIN PictureAsset pa ON pa.id = pt.pictureAssetId
+            WHERE pa.visibility = com.cn.cloudpictureplatform.domain.picture.Visibility.PUBLIC
+              AND pa.reviewStatus = com.cn.cloudpictureplatform.domain.picture.ReviewStatus.APPROVED
+            GROUP BY pt.tagText ORDER BY COUNT(*) DESC
+            """)
+    List<String> findPopularTagTexts(Pageable pageable);
+
+    @Query(
+            value = """
+            SELECT pt.pictureAssetId FROM PictureTag pt
+            JOIN PictureAsset pa ON pa.id = pt.pictureAssetId
+            WHERE pa.visibility = com.cn.cloudpictureplatform.domain.picture.Visibility.PUBLIC
+              AND pa.reviewStatus = com.cn.cloudpictureplatform.domain.picture.ReviewStatus.APPROVED
+              AND (:excludeOwnerId IS NULL OR pa.ownerId != :excludeOwnerId)
+              AND pt.tagText IN :tagTexts
+            GROUP BY pt.pictureAssetId
+            ORDER BY COUNT(*) DESC, MAX(pa.createdAt) DESC
+            """,
+            countQuery = """
+            SELECT COUNT(DISTINCT pt.pictureAssetId) FROM PictureTag pt
+            JOIN PictureAsset pa ON pa.id = pt.pictureAssetId
+            WHERE pa.visibility = com.cn.cloudpictureplatform.domain.picture.Visibility.PUBLIC
+              AND pa.reviewStatus = com.cn.cloudpictureplatform.domain.picture.ReviewStatus.APPROVED
+              AND (:excludeOwnerId IS NULL OR pa.ownerId != :excludeOwnerId)
+              AND pt.tagText IN :tagTexts
+            """
+    )
+    Page<UUID> findRecommendedPictureIds(
+            @Param("tagTexts") List<String> tagTexts,
+            @Param("excludeOwnerId") UUID excludeOwnerId,
+            Pageable pageable
+    );
+
+    @Query("""
+            SELECT pt.pictureAssetId FROM PictureTag pt
+            JOIN PictureAsset pa ON pa.id = pt.pictureAssetId
+            WHERE pa.visibility = com.cn.cloudpictureplatform.domain.picture.Visibility.PUBLIC
+              AND pa.reviewStatus = com.cn.cloudpictureplatform.domain.picture.ReviewStatus.APPROVED
+              AND (:excludeOwnerId IS NULL OR pa.ownerId != :excludeOwnerId)
+              AND pt.tagText IN :tagTexts
+            GROUP BY pt.pictureAssetId
+            ORDER BY COUNT(*) DESC, MAX(pa.createdAt) DESC
+            """)
+    List<UUID> findRecommendedPictureCandidateIds(
+            @Param("tagTexts") List<String> tagTexts,
+            @Param("excludeOwnerId") UUID excludeOwnerId
+    );
 }
