@@ -4,9 +4,11 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.mockito.Mockito.when;
 
+import com.cn.cloudpictureplatform.application.picture.PictureUploadService;
+import com.cn.cloudpictureplatform.application.picture.PictureQueryService;
+import com.cn.cloudpictureplatform.application.picture.PictureTagService;
 import com.cn.cloudpictureplatform.application.picture.PictureDocumentService;
 import com.cn.cloudpictureplatform.application.picture.PictureCollaborationRoomService;
-import com.cn.cloudpictureplatform.application.picture.PictureService;
 import com.cn.cloudpictureplatform.interfaces.picture.dto.PictureCollaborationRoomResponse;
 import com.cn.cloudpictureplatform.domain.user.UserRole;
 import com.cn.cloudpictureplatform.infrastructure.security.AppUserPrincipal;
@@ -29,7 +31,13 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class PictureControllerTests {
 
     @Mock
-    private PictureService pictureService;
+    private PictureUploadService pictureUploadService;
+
+    @Mock
+    private PictureQueryService pictureQueryService;
+
+    @Mock
+    private PictureTagService pictureTagService;
 
     @Mock
     private PictureDocumentService pictureDocumentService;
@@ -50,7 +58,9 @@ class PictureControllerTests {
     @BeforeEach
     void setUp() {
         controller = new PictureController(
-                pictureService,
+                pictureUploadService,
+                pictureQueryService,
+                pictureTagService,
                 pictureDocumentService,
                 pictureCollaborationRoomService,
                 pictureCollabAccessService,
@@ -72,7 +82,7 @@ class PictureControllerTests {
                 .build();
 
         when(pictureCollabAccessService.canAccess(pictureId, userId, java.util.Set.of())).thenReturn(true);
-        when(pictureService.getPictureDetail(pictureId, userId, java.util.Set.of("ROLE_USER")))
+        when(pictureQueryService.getPictureDetail(pictureId, userId, java.util.Set.of("ROLE_USER")))
                 .thenReturn(com.cn.cloudpictureplatform.interfaces.picture.dto.PictureDetailResponse.builder()
                         .id(pictureId)
                         .canEdit(true)
