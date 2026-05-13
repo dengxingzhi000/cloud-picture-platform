@@ -8,9 +8,11 @@ import java.util.UUID;
 import com.cn.cloudpictureplatform.infrastructure.persistence.FileContentRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -79,7 +81,6 @@ public class FileDeduplicationService {
      * @param originalFilename 原始文件名
      * @return 创建的文件内容记录
      */
-    @Transactional
     public FileContent createFileContent(
             ImageHashResult hashResult,
             String storageKey,
@@ -103,6 +104,55 @@ public class FileDeduplicationService {
                 .build();
 
         return fileContentRepository.save(fileContent);
+    }
+
+    /**
+     * 查找已有文件或创建新文件内容（并发安全）
+     * 使用独立事务避免主事务因唯一约束冲突而整体回滚
+     *
+     * @param hashResult 哈希计算结果
+     * @param storageKey 存储键
+     * @param url 访问 URL
+     * @param firstUploaderId 首次上传者ID
+     * @param originalFilename 原始文件名
+     * @return 文件内容记录（新创建或并发创建的已有记录）
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public FileContent findOrCreateFileContent(
+            ImageHashResult hashResult,
+            String storageKey,
+            String url,
+            UUID firstUploaderId,
+            String originalFilename
+    ) {
+        Optional<FileContent> existing = fileContentRepository.findBySha256Hash(hashResult.getSha256Hash());
+        if (existing.isPresent()) {
+            fileContentRepository.incrementRefCount(existing.get().getId());
+            return fileContentRepository.findById(existing.get().getId()).orElseThrow();
+        }
+        try {
+            FileContent fc = FileContent.builder()
+                    .sha256Hash(hashResult.getSha256Hash())
+                    .perceptualHash(hashResult.getPerceptualHash())
+                    .diffHash(hashResult.getDiffHash())
+                    .sizeBytes(hashResult.getSizeBytes())
+                    .contentType(hashResult.getContentType())
+                    .storageKey(storageKey)
+                    .url(url)
+                    .width(hashResult.getWidth())
+                    .height(hashResult.getHeight())
+                    .refCount(1)
+                    .originalFilename(originalFilename)
+                    .firstUploaderId(firstUploaderId)
+                    .build();
+            return fileContentRepository.saveAndFlush(fc);
+        } catch (DataIntegrityViolationException e) {
+            log.info("Concurrent duplicate detected, falling back to existing record: sha256={}", hashResult.getSha256Hash());
+        }
+        FileContent concurrent = fileContentRepository.findBySha256Hash(hashResult.getSha256Hash())
+                .orElseThrow(() -> new IllegalStateException("FileContent disappeared unexpectedly"));
+        fileContentRepository.incrementRefCount(concurrent.getId());
+        return fileContentRepository.findById(concurrent.getId()).orElseThrow();
     }
 
     /**

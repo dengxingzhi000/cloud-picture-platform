@@ -5,7 +5,6 @@ import java.util.UUID;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Index;
-import jakarta.persistence.Lob;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
 import lombok.AllArgsConstructor;
@@ -38,8 +37,7 @@ public class PictureEditorDocument extends BaseEntity {
     @Column(name = "row_version", nullable = false)
     private Long rowVersion;
 
-    @Lob
-    @Column(name = "document_content", nullable = false, columnDefinition = "clob")
+    @Column(name = "document_content", nullable = false, columnDefinition = "text")
     private String documentContent;
 
     @Column(name = "last_updated_by_user_id", columnDefinition = "uuid")

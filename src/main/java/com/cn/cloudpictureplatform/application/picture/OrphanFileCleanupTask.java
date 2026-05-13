@@ -44,7 +44,6 @@ public class OrphanFileCleanupTask {
             );
 
             if (orphans.isEmpty()) {
-                hasMore = false;
                 break;
             }
 

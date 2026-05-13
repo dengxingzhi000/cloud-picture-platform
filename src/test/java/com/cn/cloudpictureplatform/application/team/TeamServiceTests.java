@@ -1,4 +1,4 @@
-﻿package com.cn.cloudpictureplatform.application.team;
+package com.cn.cloudpictureplatform.application.team;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -21,7 +21,6 @@ import com.cn.cloudpictureplatform.domain.team.TeamMemberEvent;
 import com.cn.cloudpictureplatform.domain.team.TeamMemberStatus;
 import com.cn.cloudpictureplatform.domain.team.TeamRole;
 import com.cn.cloudpictureplatform.domain.user.AppUser;
-import com.cn.cloudpictureplatform.domain.user.UserRole;
 import com.cn.cloudpictureplatform.infrastructure.persistence.AppUserRepository;
 import com.cn.cloudpictureplatform.infrastructure.persistence.TeamMemberEventRepository;
 import com.cn.cloudpictureplatform.infrastructure.persistence.TeamMemberRepository;
@@ -78,7 +77,6 @@ class TeamServiceTests {
                 .email("bob@example.com")
                 .passwordHash("hash")
                 .displayName("Bob")
-                .role(UserRole.USER)
                 .build();
         invitee.setId(inviteeId);
 
@@ -87,7 +85,6 @@ class TeamServiceTests {
                 .email("alice@example.com")
                 .passwordHash("hash")
                 .displayName("Alice")
-                .role(UserRole.USER)
                 .build();
         inviterUser.setId(inviterId);
 

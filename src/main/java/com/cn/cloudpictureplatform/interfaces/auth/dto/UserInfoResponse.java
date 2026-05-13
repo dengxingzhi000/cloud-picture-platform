@@ -1,7 +1,7 @@
 package com.cn.cloudpictureplatform.interfaces.auth.dto;
 
+import java.util.Set;
 import java.util.UUID;
-import com.cn.cloudpictureplatform.domain.user.UserRole;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -18,5 +18,6 @@ public class UserInfoResponse {
     private String displayName;
     private String email;
     private String avatarUrl;
-    private UserRole role;
+    private Set<String> roles;
+    private Set<String> permissions;
 }

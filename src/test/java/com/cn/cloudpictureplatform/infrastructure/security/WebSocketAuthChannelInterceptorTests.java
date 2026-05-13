@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.when;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -45,13 +46,13 @@ class WebSocketAuthChannelInterceptorTests {
         UUID pictureId = UUID.randomUUID();
         UUID userId = UUID.randomUUID();
 
-        when(pictureCollabAccessService.canAccess(pictureId, userId, UserRole.USER)).thenReturn(false);
+        when(pictureCollabAccessService.canAccess(pictureId, userId, java.util.Set.of())).thenReturn(false);
 
         Message<byte[]> message = buildMessage(
                 StompCommand.SUBSCRIBE,
                 "/topic/pictures/" + pictureId + "/collab",
                 userId,
-                UserRole.USER
+                java.util.Set.of()
         );
 
         assertThrows(AccessDeniedException.class, () -> interceptor.preSend(message, null));
@@ -62,13 +63,13 @@ class WebSocketAuthChannelInterceptorTests {
         UUID pictureId = UUID.randomUUID();
         UUID userId = UUID.randomUUID();
 
-        when(pictureCollabAccessService.canAccess(pictureId, userId, UserRole.USER)).thenReturn(true);
+        when(pictureCollabAccessService.canAccess(pictureId, userId, java.util.Set.of())).thenReturn(true);
 
         Message<byte[]> message = buildMessage(
                 StompCommand.SEND,
                 "/app/pictures/" + pictureId + "/join",
                 userId,
-                UserRole.USER
+                java.util.Set.of()
         );
 
         assertDoesNotThrow(() -> interceptor.preSend(message, null));
@@ -79,24 +80,24 @@ class WebSocketAuthChannelInterceptorTests {
         UUID pictureId = UUID.randomUUID();
         UUID userId = UUID.randomUUID();
 
-        when(pictureCollabAccessService.canAccess(pictureId, userId, UserRole.USER)).thenReturn(false);
+        when(pictureCollabAccessService.canAccess(pictureId, userId, java.util.Set.of())).thenReturn(false);
 
         Message<byte[]> message = buildMessage(
                 StompCommand.SEND,
                 "/app/pictures/" + pictureId + "/annotation",
                 userId,
-                UserRole.USER
+                java.util.Set.of()
         );
 
         assertThrows(AccessDeniedException.class, () -> interceptor.preSend(message, null));
     }
 
-    private Message<byte[]> buildMessage(StompCommand command, String destination, UUID userId, UserRole role) {
+    private Message<byte[]> buildMessage(StompCommand command, String destination, UUID userId, Set<String> permissions) {
         StompHeaderAccessor accessor = StompHeaderAccessor.create(command);
         accessor.setDestination(destination);
         Map<String, Object> sessionAttributes = new HashMap<>();
         sessionAttributes.put("userId", userId.toString());
-        sessionAttributes.put("role", role.name());
+        sessionAttributes.put("permissions", permissions);
         accessor.setSessionAttributes(sessionAttributes);
         accessor.setLeaveMutable(true);
         return MessageBuilder.createMessage(new byte[0], accessor.getMessageHeaders());

@@ -1,44 +1,89 @@
 # Repository Guidelines
 
-## Project Structure & Module Organization
-- `src/main/java/com/cn/cloudpictureplatform`: backend source code.
-  - `common`, `config`: shared utilities and Spring configuration.
-  - `domain`: DDD entities and enums (user, picture, space, audit).
-  - `application`: use-case services (auth, picture workflows).
-  - `infrastructure`: persistence, storage, security integrations.
-  - `interfaces`: REST controllers and DTOs.
-- `src/main/resources`: `application.yml` and Flyway migrations under `db/migration`.
-- `src/test/java`: JUnit 5 tests.
-- `docs`: architecture notes, plan, and ER diagram (`docs/er.md`).
+## Environment Setup
+
+- **JAVA_HOME is not on PATH.** Set it before running Maven:
+  `$env:JAVA_HOME = "$env:USERPROFILE\.jdks\graalvm-jdk-21.0.8"`
+- Spring Boot **4.0.5** + Java **21** (GraalVM). Not Spring Boot 3 — API differences exist (e.g. `Jackson2ObjectMapperBuilder` is deprecated; use `JsonMapper.builder()`).
+- **PostgreSQL** is the primary database. Flyway migrations use native PG syntax (`timestamptz`, `double precision`, partial indexes).
+- **H2** in `MODE=PostgreSQL` available via `--spring.profiles.active=dev` for local development without PG.
 
 ## Build, Test, and Development Commands
-- `./mvnw clean package` builds the application JAR.
-- `./mvnw spring-boot:run` runs the backend on `http://localhost:8080`.
-- `./mvnw test` runs all tests.
 
-## Coding Style & Naming Conventions
-- Java 21 with Spring Boot 4; use Lombok for data classes.
-- Indentation: 4 spaces, no tabs.
-- Packages are lowercase; classes are `PascalCase`.
-- DTOs end with `Request` / `Response` (e.g., `ReviewRequest`).
-- Enums use `UPPER_SNAKE` values (e.g., `APPROVED`).
+```powershell
+# Set JAVA_HOME first (Windows PowerShell)
+$env:JAVA_HOME = "$env:USERPROFILE\.jdks\graalvm-jdk-21.0.8"
 
-## Testing Guidelines
-- Framework: JUnit 5 + Spring Boot Test.
-- Tests live in `src/test/java` and should be named `*Tests`.
-- When adding entities or tables, add a Flyway migration and update tests to run against the migrated schema.
+.\mvnw compile          # compile only
+.\mvnw test             # run all tests
+.\mvnw clean package    # build JAR
+.\mvnw spring-boot:run  # start on http://localhost:8080
+```
 
-## Commit & Pull Request Guidelines
-- No established commit convention yet. Prefer a short, imperative summary:
-  - Example: `feat(auth): add JWT login endpoint`
-- PRs should include:
-  - Summary of changes and affected modules.
-  - Migration notes (new Flyway scripts, schema changes).
-  - Config changes (e.g., new `application.yml` keys).
-  - Screenshots for UI changes (if applicable).
+- `TeamServiceTests.java` has a pre-existing syntax error (missing class body). Skip it or fix before running full test suite.
+- No `typecheck` or `lint` commands — this is a plain Java/Maven project.
 
-## Security & Configuration Tips
-- Update `app.security.jwt.secret` in `src/main/resources/application.yml` for any real deployment.
-- Storage provider is `local` by default; set `app.storage.provider=cos` and fill `app.storage.cos.*` to use COS.
-- Default DB is in-memory H2. Switch to Postgres by changing `spring.datasource.*`.
-- Redis host is configured in `application.yml`; adjust for your environment or disable caching if unavailable.
+## Project Structure
+
+```
+src/main/java/com/cn/cloudpictureplatform/
+  common/          — BaseEntity, ApiException, ApiErrorCode, ApiResponse, GlobalExceptionHandler
+  config/          — Spring @Configuration classes + properties records
+  config/cache/    — FallbackCache (Redis primary → Caffeine fallback, tolerates Redis down)
+  domain/          — JPA entities (all extend BaseEntity with UUID v7 IDs)
+  application/     — Use-case services (transactional boundaries live here)
+  infrastructure/  — persistence (repositories), security (JWT), storage (local/COS), search
+  interfaces/      — REST controllers + DTOs
+  websocket/       — STOMP/SockJS real-time: collab editing, presence, notifications
+```
+
+- **Entry point:** `CloudPicturePlatformApplication.java`
+- **Repositories** are in `infrastructure/persistence/`, not in `domain/`.
+- **Controllers** are in `interfaces/`, one sub-package per bounded area.
+- **DTOs** are in `interfaces/*/dto/`, named `*Request` / `*Response`.
+
+## Key Architecture Patterns
+
+- **BaseEntity** (`common/model/`): all entities extend it. Provides `id` (UUID v7 via `@UuidGenerator`), `createdAt`, `updatedAt` (auto-audited).
+- **Error handling:** throw `new ApiException(ApiErrorCode.XXX, "message")`. `GlobalExceptionHandler` converts to `ApiResponse`.
+- **Cache:** `FallbackCache` wraps Redis (primary) + Caffeine (fallback). If Redis is unreachable, cache operations silently degrade. Cache names: `publicGallery`, `pictureSearch`, `adminPending`, `pictureRecommendations`.
+- **Storage:** `app.storage.provider` switches between `local` (filesystem) and `cos` (Tencent COS). Both implement `StorageService`.
+- **File deduplication:** `FileDeduplicationService` tracks files by SHA-256 hash with reference counting. `DeduplicationPictureUploadService` uses `findOrCreateFileContent()` with `REQUIRES_NEW` transaction for concurrent-safe dedup.
+- **Search:** `DatabaseSearchIndexService` (not Elasticsearch). Async indexing via `searchIndexTaskExecutor` thread pool.
+- **WebSocket:** STOMP over SockJS at `/ws`. Auth via `WebSocketAuthChannelInterceptor` (JWT in STOMP headers). Topics: `/topic/admin/*`, `/topic/pictures/{id}/collab`. User queues: `/user/queue/notifications`.
+- **Admin bootstrap:** `DataInitializer` creates admin/admin123 on startup when `app.bootstrap.admin.enabled=true`. `/api/admin/**` requires `ROLE_ADMIN`.
+- **Public endpoints** (no auth): `/api/auth/register`, `/api/auth/login`, `GET /api/pictures/public`, `GET /api/pictures/search`, `GET /api/pictures/recommendations`, `/ws/**`, `/actuator/health`.
+
+## Database & Migrations
+
+- Flyway migrations in `src/main/resources/db/migration/`, versioned `V1__init.sql` through `V12__*.sql`.
+- JPA `ddl-auto: update` + Flyway `enabled: true` — both run on startup. Flyway applies versioned scripts; Hibernate auto-creates any missing columns/tables.
+- When adding entities: create a Flyway migration AND add JPA annotations. Both are needed.
+- Column types use `columnDefinition = "uuid"` for UUID fields (Postgres/H2 compatible).
+
+## Coding Conventions
+
+- **Lombok everywhere:** `@Getter @Setter @Builder @AllArgsConstructor @NoArgsConstructor` on entities. `@RequiredArgsConstructor` on services.
+- **4 spaces, no tabs.** Packages lowercase, classes PascalCase.
+- **Enums:** `@Enumerated(EnumType.STRING)` with `UPPER_SNAKE` values.
+- **No `@Autowired`** — constructor injection via `@RequiredArgsConstructor` or explicit constructors.
+- **Transactional boundaries** are on `application/` service methods, not on controllers or repositories.
+- **`@Modifying @Query`** for atomic updates (e.g. `incrementRefCount`, `incrementUsedBytes`). Never read-modify-write entity fields that need concurrency safety.
+
+## Testing
+
+- JUnit 5 + Spring Boot Test. Test classes named `*Tests`.
+- Tests use H2 in-memory (test profile auto-activates). Flyway migrations run automatically.
+- `TeamServiceTests.java` is broken — do not use as a reference.
+
+## Configuration
+
+- `application.yml` is the single config file. Key prefixes:
+  - `app.storage.*` — storage provider settings
+  - `app.security.jwt.*` — JWT config (secret must be changed for production)
+  - `app.bootstrap.admin.*` — admin auto-creation toggle
+  - `app.websocket.*` / `app.collaboration.*` — WebSocket and collab room config
+- PostgreSQL is the default database. Connection configured via `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USERNAME`, `DB_PASSWORD` env vars.
+- For local dev without PG: `--spring.profiles.active=dev` uses H2 in-memory.
+- Redis is required for caching. Host: `192.168.80.132:6379` (hardcoded in dev config). Disable or change for your environment.
+- Actuator exposes: `health`, `info`, `metrics`, `caches`, `prometheus`.

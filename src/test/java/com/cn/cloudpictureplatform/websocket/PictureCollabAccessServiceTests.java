@@ -80,7 +80,7 @@ class PictureCollabAccessServiceTests {
         when(spaceRepository.findById(spaceId)).thenReturn(Optional.of(space));
         when(teamMemberRepository.findByTeamIdAndUserId(teamId, userId)).thenReturn(Optional.of(member));
 
-        assertTrue(service.canAccess(pictureId, userId, UserRole.USER));
+        assertTrue(service.canAccess(pictureId, userId, java.util.Set.of()));
     }
 
     @Test
@@ -114,6 +114,6 @@ class PictureCollabAccessServiceTests {
         when(spaceRepository.findById(spaceId)).thenReturn(Optional.of(space));
         when(teamMemberRepository.findByTeamIdAndUserId(teamId, userId)).thenReturn(Optional.empty());
 
-        assertFalse(service.canAccess(pictureId, userId, UserRole.USER));
+        assertFalse(service.canAccess(pictureId, userId, java.util.Set.of()));
     }
 }

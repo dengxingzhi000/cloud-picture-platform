@@ -25,7 +25,6 @@ import com.cn.cloudpictureplatform.infrastructure.persistence.PictureTagReposito
 @Slf4j
 @Service
 public class DatabaseSearchIndexService implements SearchIndexService {
-
     private final TaskExecutor searchIndexTaskExecutor;
     private final PictureAssetRepository pictureAssetRepository;
     private final PictureTagRepository pictureTagRepository;
