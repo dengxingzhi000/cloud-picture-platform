@@ -19,7 +19,9 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.multipart.MultipartFile;
-import com.cn.cloudpictureplatform.application.picture.PictureService;
+import com.cn.cloudpictureplatform.application.picture.PictureUploadService;
+import com.cn.cloudpictureplatform.application.picture.PictureQueryService;
+import com.cn.cloudpictureplatform.application.picture.PictureTagService;
 import com.cn.cloudpictureplatform.application.picture.PictureDocumentService;
 import com.cn.cloudpictureplatform.application.picture.PictureCollaborationRoomService;
 import com.cn.cloudpictureplatform.common.exception.ApiException;
@@ -51,7 +53,9 @@ import com.cn.cloudpictureplatform.websocket.dto.PresenceSnapshot;
 public class PictureController {
     private static final String SESSION_CONTRACT_VERSION = "picture-editor-session.v1";
 
-    private final PictureService pictureService;
+    private final PictureUploadService pictureUploadService;
+    private final PictureQueryService pictureQueryService;
+    private final PictureTagService pictureTagService;
     private final PictureDocumentService pictureDocumentService;
     private final PictureCollaborationRoomService pictureCollaborationRoomService;
     private final PictureCollabAccessService pictureCollabAccessService;
@@ -59,14 +63,18 @@ public class PictureController {
     private final EditLockService editLockService;
 
     public PictureController(
-            PictureService pictureService,
+            PictureUploadService pictureUploadService,
+            PictureQueryService pictureQueryService,
+            PictureTagService pictureTagService,
             PictureDocumentService pictureDocumentService,
             PictureCollaborationRoomService pictureCollaborationRoomService,
             PictureCollabAccessService pictureCollabAccessService,
             PresenceService presenceService,
             EditLockService editLockService
     ) {
-        this.pictureService = pictureService;
+        this.pictureUploadService = pictureUploadService;
+        this.pictureQueryService = pictureQueryService;
+        this.pictureTagService = pictureTagService;
         this.pictureDocumentService = pictureDocumentService;
         this.pictureCollaborationRoomService = pictureCollaborationRoomService;
         this.pictureCollabAccessService = pictureCollabAccessService;
@@ -82,7 +90,7 @@ public class PictureController {
             @RequestParam(value = "name", required = false) String name,
             @RequestParam(value = "spaceId", required = false) UUID spaceId
     ) {
-        return ApiResponse.ok(pictureService.upload(principal.getId(), file, visibility, name, spaceId));
+        return ApiResponse.ok(pictureUploadService.upload(principal.getId(), file, visibility, name, spaceId));
     }
 
     @GetMapping("/public")
@@ -94,7 +102,7 @@ public class PictureController {
             @RequestParam(required = false) Long maxSizeBytes,
             @RequestParam(required = false) String orientation
     ) {
-        return ApiResponse.ok(pictureService.listPublic(
+        return ApiResponse.ok(pictureQueryService.listPublic(
                 page,
                 size,
                 keyword,
@@ -110,7 +118,7 @@ public class PictureController {
             @RequestParam(defaultValue = "0") @Min(0) int page,
             @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size
     ) {
-        return ApiResponse.ok(pictureService.recommendPublic(
+        return ApiResponse.ok(pictureQueryService.recommendPublic(
                 page,
                 size,
                 principal == null ? null : principal.getId()
@@ -137,7 +145,7 @@ public class PictureController {
             @RequestParam(required = false) String sortBy,
             @RequestParam(required = false) String sortDir
     ) {
-        return ApiResponse.ok(pictureService.searchPictures(
+        return ApiResponse.ok(pictureQueryService.searchPictures(
                 page,
                 size,
                 keyword,
@@ -164,7 +172,7 @@ public class PictureController {
             @PathVariable("id") UUID pictureId,
             @AuthenticationPrincipal AppUserPrincipal principal
     ) {
-        return ApiResponse.ok(pictureService.getPictureDetail(
+        return ApiResponse.ok(pictureQueryService.getPictureDetail(
                 pictureId,
                 principal == null ? null : principal.getId(),
                 principal == null ? null : principal.getRoles()
@@ -329,7 +337,7 @@ public class PictureController {
 
     @GetMapping("/{id}/tags")
     public ApiResponse<List<PictureTagResponse>> listTags(@PathVariable("id") UUID pictureId) {
-        return ApiResponse.ok(pictureService.listTags(pictureId));
+        return ApiResponse.ok(pictureTagService.listTags(pictureId));
     }
 
     @PostMapping("/{id}/tags")
@@ -337,7 +345,7 @@ public class PictureController {
             @PathVariable("id") UUID pictureId,
             @Valid @RequestBody PictureTagCreateRequest request
     ) {
-        return ApiResponse.ok(pictureService.addTags(pictureId, request));
+        return ApiResponse.ok(pictureTagService.addTags(pictureId, request));
     }
 
     @DeleteMapping("/{id}/tags/{tagId}")
@@ -345,7 +353,7 @@ public class PictureController {
             @PathVariable("id") UUID pictureId,
             @PathVariable("tagId") UUID tagId
     ) {
-        pictureService.removeTag(pictureId, tagId);
+        pictureTagService.removeTag(pictureId, tagId);
         return ApiResponse.ok(null);
     }
 
@@ -357,7 +365,7 @@ public class PictureController {
     }
 
     private PictureDetailResponse getEditorDetail(UUID pictureId, AppUserPrincipal principal) {
-        return pictureService.getPictureDetail(
+        return pictureQueryService.getPictureDetail(
                 pictureId,
                 principal.getId(),
                 principal.getRoles()

@@ -19,7 +19,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.format.annotation.DateTimeFormat;
-import com.cn.cloudpictureplatform.application.picture.PictureService;
+import com.cn.cloudpictureplatform.application.picture.ModerationService;
 import com.cn.cloudpictureplatform.common.web.ApiResponse;
 import com.cn.cloudpictureplatform.common.web.PageResponse;
 import com.cn.cloudpictureplatform.domain.picture.ReviewStatus;
@@ -33,10 +33,10 @@ import com.cn.cloudpictureplatform.interfaces.picture.dto.PictureResponse;
 @RestController
 @RequestMapping("/api/admin/pictures")
 public class AdminPictureController {
-    private final PictureService pictureService;
+    private final ModerationService moderationService;
 
-    public AdminPictureController(PictureService pictureService) {
-        this.pictureService = pictureService;
+    public AdminPictureController(ModerationService moderationService) {
+        this.moderationService = moderationService;
     }
 
     @GetMapping("/pending")
@@ -44,12 +44,12 @@ public class AdminPictureController {
             @RequestParam(defaultValue = "0") @Min(0) int page,
             @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size
     ) {
-        return ApiResponse.ok(pictureService.listPending(page, size));
+        return ApiResponse.ok(moderationService.listPending(page, size));
     }
 
     @GetMapping("/{id}")
     public ApiResponse<AdminPictureSummary> getDetail(@PathVariable("id") UUID pictureId) {
-        return ApiResponse.ok(pictureService.getAdminPicture(pictureId));
+        return ApiResponse.ok(moderationService.getAdminPicture(pictureId));
     }
 
     @PostMapping("/{id}/review")
@@ -58,7 +58,7 @@ public class AdminPictureController {
             @AuthenticationPrincipal AppUserPrincipal principal,
             @Valid @RequestBody ReviewRequest request
     ) {
-        return ApiResponse.ok(pictureService.review(
+        return ApiResponse.ok(moderationService.review(
                 pictureId,
                 principal.getId(),
                 request.getStatus(),
@@ -79,7 +79,7 @@ public class AdminPictureController {
             @RequestParam(required = false) String sortBy,
             @RequestParam(required = false) String sortDir
     ) {
-        return ApiResponse.ok(pictureService.listModerationHistory(
+        return ApiResponse.ok(moderationService.listModerationHistory(
                 pictureId,
                 page,
                 size,
@@ -106,7 +106,7 @@ public class AdminPictureController {
             @RequestParam(required = false) String sortBy,
             @RequestParam(required = false) String sortDir
     ) {
-        return ApiResponse.ok(pictureService.listModerationHistory(
+        return ApiResponse.ok(moderationService.listModerationHistory(
                 pictureId,
                 page,
                 size,
@@ -132,7 +132,7 @@ public class AdminPictureController {
             @RequestParam(required = false) String sortDir,
             @RequestParam(defaultValue = "1000") @Min(1) @Max(10000) int limit
     ) {
-        List<ModerationRecordResponse> records = pictureService.exportModerationHistory(
+        List<ModerationRecordResponse> records = moderationService.exportModerationHistory(
                 pictureId,
                 reviewerId,
                 fromStatus,
