@@ -1,6 +1,10 @@
 package com.cn.cloudpictureplatform.infrastructure.security;
 
 import java.io.IOException;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -36,6 +40,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     && SecurityContextHolder.getContext().getAuthentication() == null) {
                 String username = jwtTokenService.extractUsername(token);
                 try {
+                    // Load full principal from DB (includes fresh roles/permissions)
                     var userDetails = appUserDetailsService.loadUserByUsername(username);
                     if (userDetails.isEnabled()) {
                         var authentication = new UsernamePasswordAuthenticationToken(
@@ -47,8 +52,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                         SecurityContextHolder.getContext().setAuthentication(authentication);
                     }
                 } catch (UsernameNotFoundException ignored) {
-                    // Token is valid but user no longer exists (e.g. in-memory DB restart).
-                    // Proceed as unauthenticated — downstream security rules will reject if needed.
+                    // Token valid but user deleted — proceed unauthenticated
                 }
             }
         }

@@ -4,6 +4,7 @@ import java.time.Duration;
 import java.util.List;
 import com.cn.cloudpictureplatform.config.cache.FallbackCacheManager;
 import com.github.benmanes.caffeine.cache.Caffeine;
+import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
@@ -23,9 +24,9 @@ import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.serializer.RedisSerializationContext;
 import org.springframework.data.redis.serializer.RedisSerializer;
 
+@Slf4j
 @Configuration
 public class CacheConfig {
-    private static final Logger log = LoggerFactory.getLogger(CacheConfig.class);
 
     @Bean
     public RedisCacheConfiguration redisCacheConfiguration() {

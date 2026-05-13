@@ -1,5 +1,6 @@
 package com.cn.cloudpictureplatform.websocket;
 
+import java.util.Set;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import com.cn.cloudpictureplatform.domain.picture.PictureAsset;
@@ -8,7 +9,6 @@ import com.cn.cloudpictureplatform.domain.picture.Visibility;
 import com.cn.cloudpictureplatform.domain.space.Space;
 import com.cn.cloudpictureplatform.domain.space.SpaceType;
 import com.cn.cloudpictureplatform.domain.team.TeamMemberStatus;
-import com.cn.cloudpictureplatform.domain.user.UserRole;
 import com.cn.cloudpictureplatform.infrastructure.persistence.PictureAssetRepository;
 import com.cn.cloudpictureplatform.infrastructure.persistence.SpaceRepository;
 import com.cn.cloudpictureplatform.infrastructure.persistence.TeamMemberRepository;
@@ -30,11 +30,11 @@ public class PictureCollabAccessService {
         this.teamMemberRepository = teamMemberRepository;
     }
 
-    public boolean canAccess(UUID pictureId, UUID userId, UserRole role) {
+    public boolean canAccess(UUID pictureId, UUID userId, Set<String> permissions) {
         if (pictureId == null || userId == null) {
             return false;
         }
-        if (role == UserRole.ADMIN) {
+        if (permissions.contains("admin:review")) {
             return true;
         }
 

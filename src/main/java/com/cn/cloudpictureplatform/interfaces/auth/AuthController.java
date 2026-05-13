@@ -52,7 +52,8 @@ public class AuthController {
                 .displayName(user.getDisplayName())
                 .email(user.getEmail())
                 .avatarUrl(user.getAvatarUrl())
-                .role(user.getRole())
+                .roles(principal.getRoles())
+                .permissions(principal.getPermissions())
                 .build();
         return ApiResponse.ok(response);
     }
@@ -69,7 +70,8 @@ public class AuthController {
                 .displayName(user.getDisplayName())
                 .email(user.getEmail())
                 .avatarUrl(user.getAvatarUrl())
-                .role(user.getRole())
+                .roles(principal.getRoles())
+                .permissions(principal.getPermissions())
                 .build();
         return ApiResponse.ok(response);
     }

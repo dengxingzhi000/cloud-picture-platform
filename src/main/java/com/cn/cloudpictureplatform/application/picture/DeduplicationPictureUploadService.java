@@ -33,9 +33,12 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.util.Collection;
+import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
  * 支持去重的图片上传服务
@@ -45,7 +48,6 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 public class DeduplicationPictureUploadService {
-
     private final StorageService storageService;
     private final FileDeduplicationService fileDeduplicationService;
     private final PictureAssetRepository pictureAssetRepository;
@@ -80,6 +82,10 @@ public class DeduplicationPictureUploadService {
             throw new ApiException(ApiErrorCode.BAD_REQUEST, "file is empty");
         }
 
+        String originalFilename = StringUtils.hasText(file.getOriginalFilename())
+                ? file.getOriginalFilename()
+                : "upload";
+
         // 1. 校验空间权限
         Space space = resolveSpace(ownerId, spaceId);
 
@@ -100,15 +106,12 @@ public class DeduplicationPictureUploadService {
             log.info("Duplicate file detected, reusing existing storage: sha256={}, fileContentId={}",
                     hashResult.getSha256Hash(), fileContent.getId());
         } else {
-            // 3b. 新文件，存储到存储服务
-            String originalFilename = StringUtils.hasText(file.getOriginalFilename())
-                    ? file.getOriginalFilename()
-                    : "upload";
+            // 3b. 新文件，上传到存储服务
             String key = buildStorageKey(ownerId, originalFilename);
             StorageResult storageResult = storageService.store(file, key);
 
-            // 创建文件内容记录
-            fileContent = fileDeduplicationService.createFileContent(
+            // 并发安全：findOrCreate 内部使用独立事务，捕获唯一约束冲突后回退到已有记录
+            fileContent = fileDeduplicationService.findOrCreateFileContent(
                     hashResult,
                     storageResult.getKey(),
                     storageResult.getUrl(),
@@ -118,9 +121,6 @@ public class DeduplicationPictureUploadService {
         }
 
         // 4. 创建图片资产记录（引用 file_content）
-        String originalFilename = StringUtils.hasText(file.getOriginalFilename())
-                ? file.getOriginalFilename()
-                : "upload";
         String resolvedName = StringUtils.hasText(name) ? name : originalFilename;
         Visibility resolvedVisibility = visibility == null ? Visibility.PRIVATE : visibility;
         ReviewStatus reviewStatus = resolvedVisibility == Visibility.PUBLIC
@@ -136,19 +136,19 @@ public class DeduplicationPictureUploadService {
                 .originalFilename(originalFilename)
                 .contentType(fileContent.getContentType())
                 .sizeBytes(fileContent.getSizeBytes())
-                .checksum(hashResult.getSha256Hash())  // 使用 SHA-256 作为 checksum
+                .checksum(hashResult.getSha256Hash())
                 .storageKey(fileContent.getStorageKey())
                 .url(fileContent.getUrl())
-                .fileContentId(fileContent.getId())  // 关联到 file_content
+                .fileContentId(fileContent.getId())
                 .width(fileContent.getWidth())
                 .height(fileContent.getHeight())
                 .build();
 
         PictureAsset saved = pictureAssetRepository.save(asset);
 
-        // 5. 更新空间使用量（即使是重复文件，也计算在用户的空间使用量中）
-        space.setUsedBytes(space.getUsedBytes() + fileContent.getSizeBytes());
-        spaceRepository.save(space);
+        // 5. 原子更新空间使用量（避免并发 read-modify-write 丢失）
+        spaceRepository.incrementUsedBytes(space.getId(), fileContent.getSizeBytes());
+
         searchIndexService.enqueuePicture(saved.getId());
         notifyUploadRelatedParties(saved, space, ownerId);
 
@@ -168,7 +168,8 @@ public class DeduplicationPictureUploadService {
         if (!StringUtils.hasText(sha256Hash)) {
             return Optional.empty();
         }
-        return pictureAssetRepository.findByOwnerIdAndChecksum(ownerId, sha256Hash, PageRequest.of(0, 1))
+        return pictureAssetRepository.findByOwnerIdAndChecksum(ownerId, sha256Hash,
+                        PageRequest.of(0, 1))
                 .stream()
                 .findFirst();
     }
@@ -225,23 +226,34 @@ public class DeduplicationPictureUploadService {
         }
 
         if (space.getType() == SpaceType.TEAM && space.getTeamId() != null) {
-            Collection<String> usernames = teamMemberRepository.findByTeamIdAndStatus(
-                            space.getTeamId(),
-                            TeamMemberStatus.ACTIVE
-                    ).stream()
+            List<TeamMember> members = teamMemberRepository.findByTeamIdAndStatus(
+                    space.getTeamId(),
+                    TeamMemberStatus.ACTIVE
+            );
+            List<UUID> memberUserIds = members.stream()
                     .map(TeamMember::getUserId)
                     .filter(userId -> !userId.equals(ownerId))
-                    .map(userId -> appUserRepository.findById(userId).orElse(null))
-                    .filter(Objects::nonNull)
-                    .map(AppUser::getUsername)
-                    .filter(StringUtils::hasText)
                     .toList();
-            notificationPublisher.notifyTeamPictureUploaded(
-                    usernames,
-                    asset.getId(),
-                    asset.getName(),
-                    ownerUsername == null ? "unknown" : ownerUsername
-            );
+
+            if (!memberUserIds.isEmpty()) {
+                Map<UUID, String> usernameMap = appUserRepository.findAllById(memberUserIds).stream()
+                        .filter(user -> StringUtils.hasText(user.getUsername()))
+                        .collect(Collectors.toMap(AppUser::getId, AppUser::getUsername));
+
+                Collection<String> usernames = memberUserIds.stream()
+                        .map(usernameMap::get)
+                        .filter(Objects::nonNull)
+                        .toList();
+
+                if (!usernames.isEmpty()) {
+                    notificationPublisher.notifyTeamPictureUploaded(
+                            usernames,
+                            asset.getId(),
+                            asset.getName(),
+                            ownerUsername == null ? "unknown" : ownerUsername
+                    );
+                }
+            }
         }
     }
 }

@@ -2,8 +2,12 @@ package com.cn.cloudpictureplatform.infrastructure.security;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.util.Collections;
 import java.util.Date;
+import java.util.List;
+import java.util.Set;
 import javax.crypto.SecretKey;
+
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
@@ -13,6 +17,10 @@ import com.cn.cloudpictureplatform.config.JwtProperties;
 
 @Service
 public class JwtTokenService {
+    private static final String CLAIM_ROLES = "roles";
+    private static final String CLAIM_PERMS = "perms";
+    private static final String CLAIM_UID = "uid";
+
     private final JwtProperties properties;
     private final SecretKey secretKey;
 
@@ -29,13 +37,31 @@ public class JwtTokenService {
                 .issuer(properties.getIssuer())
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(expiry))
-                .claim("uid", principal.getId().toString())
+                .claim(CLAIM_UID, principal.getId().toString())
+                .claim(CLAIM_ROLES, List.copyOf(principal.getRoles()))
+                .claim(CLAIM_PERMS, List.copyOf(principal.getPermissions()))
                 .signWith(secretKey)
                 .compact();
     }
 
     public String extractUsername(String token) {
         return parseClaims(token).getSubject();
+    }
+
+    public List<String> extractRoles(String token) {
+        Object roles = parseClaims(token).get(CLAIM_ROLES);
+        if (roles instanceof List<?> list) {
+            return list.stream().map(Object::toString).toList();
+        }
+        return Collections.emptyList();
+    }
+
+    public List<String> extractPermissions(String token) {
+        Object perms = parseClaims(token).get(CLAIM_PERMS);
+        if (perms instanceof List<?> list) {
+            return list.stream().map(Object::toString).toList();
+        }
+        return Collections.emptyList();
     }
 
     public boolean isTokenValid(String token) {

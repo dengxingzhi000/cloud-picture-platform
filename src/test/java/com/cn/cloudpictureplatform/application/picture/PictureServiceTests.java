@@ -134,7 +134,6 @@ class PictureServiceTests {
                 .username("owner")
                 .displayName("Owner")
                 .passwordHash("hash")
-                .role(UserRole.USER)
                 .build();
         owner.setId(ownerId);
 
@@ -145,7 +144,7 @@ class PictureServiceTests {
         when(appUserRepository.findById(ownerId)).thenReturn(Optional.of(owner));
         when(pictureTagRepository.findByPictureAssetIdOrderByCreatedAtDesc(pictureId)).thenReturn(List.of());
 
-        PictureDetailResponse response = pictureService.getPictureDetail(pictureId, requesterId, UserRole.USER);
+        PictureDetailResponse response = pictureService.getPictureDetail(pictureId, requesterId, java.util.Set.of("ROLE_USER"));
 
         assertEquals(pictureId, response.getId());
         assertEquals("Design Team", response.getTeamName());
@@ -176,12 +175,12 @@ class PictureServiceTests {
                 .username("alice")
                 .displayName("Alice")
                 .passwordHash("hash")
-                .role(UserRole.USER)
                 .build();
         owner.setId(ownerId);
 
         when(pictureAssetRepository.findById(pictureId)).thenReturn(Optional.of(picture));
-        when(pictureAssetRepository.save(any(PictureAsset.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(pictureAssetRepository.save(any(PictureAsset.class))).thenAnswer(invocation ->
+                invocation.getArgument(0));
         when(appUserRepository.findById(ownerId)).thenReturn(Optional.of(owner));
 
         pictureService.review(pictureId, reviewerId, ReviewStatus.APPROVED, "looks good");
@@ -215,7 +214,6 @@ class PictureServiceTests {
                 .username("alice")
                 .displayName("Alice")
                 .passwordHash("hash")
-                .role(UserRole.USER)
                 .build();
         owner.setId(ownerId);
 
@@ -284,7 +282,6 @@ class PictureServiceTests {
                 .username("alice")
                 .displayName("Alice")
                 .passwordHash("hash")
-                .role(UserRole.USER)
                 .build();
         owner.setId(ownerId);
 
@@ -292,7 +289,6 @@ class PictureServiceTests {
                 .username("bob")
                 .displayName("Bob")
                 .passwordHash("hash")
-                .role(UserRole.USER)
                 .build();
         teammate.setId(teammateId);
 

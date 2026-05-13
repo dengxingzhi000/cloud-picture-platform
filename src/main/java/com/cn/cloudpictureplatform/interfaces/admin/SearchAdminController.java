@@ -15,7 +15,6 @@ import com.cn.cloudpictureplatform.interfaces.admin.dto.SearchReindexResponse;
 @RestController
 @RequestMapping("/api/admin/search")
 public class SearchAdminController {
-
     private final SearchMaintenanceService searchMaintenanceService;
 
     public SearchAdminController(SearchMaintenanceService searchMaintenanceService) {

@@ -1,10 +1,13 @@
 package com.cn.cloudpictureplatform.infrastructure.security;
 
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.simp.stomp.StompCommand;
@@ -13,9 +16,7 @@ import org.springframework.messaging.support.ChannelInterceptor;
 import org.springframework.messaging.support.MessageHeaderAccessor;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.stereotype.Component;
-import com.cn.cloudpictureplatform.domain.user.UserRole;
 import com.cn.cloudpictureplatform.websocket.PictureCollabAccessService;
 
 @Component
@@ -71,10 +72,10 @@ public class WebSocketAuthChannelInterceptor implements ChannelInterceptor {
             AppUserPrincipal principal =
                     (AppUserPrincipal) appUserDetailsService.loadUserByUsername(username);
 
-            var authentication = new UsernamePasswordAuthenticationToken(
+            UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
                     principal,
                     null,
-                    List.of(new SimpleGrantedAuthority("ROLE_" + principal.getRole().name()))
+                    principal.getAuthorities()
             );
             accessor.setUser(authentication);
 
@@ -82,10 +83,10 @@ public class WebSocketAuthChannelInterceptor implements ChannelInterceptor {
             if (sessionAttributes != null) {
                 sessionAttributes.put("userId", principal.getId().toString());
                 sessionAttributes.put("username", principal.getUsername());
-                sessionAttributes.put("role", principal.getRole().name());
+                sessionAttributes.put("permissions", principal.getPermissions());
             }
         } catch (Exception ignored) {
-            // Unknown user proceeds unauthenticated and will fail protected operations later.
+            // Unknown user proceeds unauthenticated
         }
 
         return message;
@@ -111,8 +112,8 @@ public class WebSocketAuthChannelInterceptor implements ChannelInterceptor {
         }
 
         UUID userId = extractUserId(accessor);
-        UserRole role = extractRole(accessor);
-        if (!pictureCollabAccessService.canAccess(pictureId, userId, role)) {
+        Set<String> permissions = extractPermissions(accessor);
+        if (!pictureCollabAccessService.canAccess(pictureId, userId, permissions)) {
             throw new AccessDeniedException("forbidden");
         }
     }
@@ -123,6 +124,22 @@ public class WebSocketAuthChannelInterceptor implements ChannelInterceptor {
             return null;
         }
         return UUID.fromString(matcher.group(1));
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Set<String> extractPermissions(StompHeaderAccessor accessor) {
+        Map<String, Object> sessionAttributes = accessor.getSessionAttributes();
+        if (sessionAttributes == null) {
+            return Set.of();
+        }
+        Object value = sessionAttributes.get("permissions");
+        if (value instanceof Set<?> set) {
+            return (Set<String>) set;
+        }
+        if (value instanceof List<?> list) {
+            return new HashSet<>((List<String>) list);
+        }
+        return Set.of();
     }
 
     private static UUID extractUserId(StompHeaderAccessor accessor) {
@@ -138,20 +155,5 @@ public class WebSocketAuthChannelInterceptor implements ChannelInterceptor {
             return UUID.fromString(text);
         }
         return null;
-    }
-
-    private static UserRole extractRole(StompHeaderAccessor accessor) {
-        Map<String, Object> sessionAttributes = accessor.getSessionAttributes();
-        if (sessionAttributes == null) {
-            return UserRole.USER;
-        }
-        Object value = sessionAttributes.get("role");
-        if (value instanceof UserRole role) {
-            return role;
-        }
-        if (value instanceof String text && !text.isBlank()) {
-            return UserRole.valueOf(text);
-        }
-        return UserRole.USER;
     }
 }

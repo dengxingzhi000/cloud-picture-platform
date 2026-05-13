@@ -155,7 +155,7 @@ public class PictureController {
                 sortBy,
                 sortDir,
                 principal == null ? null : principal.getId(),
-                principal == null ? null : principal.getRole()
+                principal == null ? null : principal.getRoles()
         ));
     }
 
@@ -167,7 +167,7 @@ public class PictureController {
         return ApiResponse.ok(pictureService.getPictureDetail(
                 pictureId,
                 principal == null ? null : principal.getId(),
-                principal == null ? null : principal.getRole()
+                principal == null ? null : principal.getRoles()
         ));
     }
 
@@ -271,17 +271,20 @@ public class PictureController {
                                 EditorRealtimeEventDefinitionResponse.builder()
                                         .eventType("ELEMENT_ADD")
                                         .payloadType("PictureDocumentElementResponse")
-                                        .description("Broadcast a newly persisted editor element. Clients should send payload.baseVersion from the latest document snapshot.")
+                                        .description("Broadcast a newly persisted editor element. " +
+                                                "Clients should send payload.baseVersion from the latest document snapshot.")
                                         .build(),
                                 EditorRealtimeEventDefinitionResponse.builder()
                                         .eventType("ELEMENT_UPDATE")
                                         .payloadType("PictureDocumentElementResponse")
-                                        .description("Broadcast a persisted editor element update with incremented version. Clients should send payload.baseVersion from the latest document snapshot.")
+                                        .description("Broadcast a persisted editor element update with incremented version. " +
+                                                "Clients should send payload.baseVersion from the latest document snapshot.")
                                         .build(),
                                 EditorRealtimeEventDefinitionResponse.builder()
                                         .eventType("ELEMENT_REMOVE")
                                         .payloadType("PictureDocumentElementResponse")
-                                        .description("Broadcast the removed editor element and resulting version. Clients should send payload.baseVersion from the latest document snapshot.")
+                                        .description("Broadcast the removed editor element and resulting version. " +
+                                                "Clients should send payload.baseVersion from the latest document snapshot.")
                                         .build(),
                                 EditorRealtimeEventDefinitionResponse.builder()
                                         .eventType("VERSION_CONFLICT")
@@ -348,7 +351,7 @@ public class PictureController {
 
     private void verifyEditorAccess(UUID pictureId, AppUserPrincipal principal) {
         if (principal == null
-                || !pictureCollabAccessService.canAccess(pictureId, principal.getId(), principal.getRole())) {
+                || !pictureCollabAccessService.canAccess(pictureId, principal.getId(), principal.getPermissions())) {
             throw new ApiException(ApiErrorCode.FORBIDDEN, "insufficient permissions");
         }
     }
@@ -357,7 +360,7 @@ public class PictureController {
         return pictureService.getPictureDetail(
                 pictureId,
                 principal.getId(),
-                principal.getRole()
+                principal.getRoles()
         );
     }
 

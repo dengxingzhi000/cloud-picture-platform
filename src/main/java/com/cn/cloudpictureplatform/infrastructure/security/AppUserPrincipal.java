@@ -1,37 +1,50 @@
 package com.cn.cloudpictureplatform.infrastructure.security;
 
 import java.util.Collection;
-import java.util.List;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import lombok.Getter;
 import lombok.NonNull;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
-import com.cn.cloudpictureplatform.domain.user.UserRole;
 
 @Getter
 public class AppUserPrincipal implements UserDetails {
-
     private final UUID id;
     private final String username;
     private final String password;
     private final boolean enabled;
-    private final UserRole role;
+    private final Set<String> roles;
+    private final Set<String> permissions;
 
-    public AppUserPrincipal(UUID id, String username, String password, boolean enabled, UserRole role) {
+    public AppUserPrincipal(UUID id, String username, String password, boolean enabled,
+                            Set<String> roles, Set<String> permissions) {
         this.id = id;
         this.username = username;
         this.password = password;
         this.enabled = enabled;
-        this.role = role == null ? UserRole.USER : role;
+        this.roles = roles != null ? roles : Set.of();
+        this.permissions = permissions != null ? permissions : Set.of();
     }
 
     @Override
     @NonNull
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        return List.of(new SimpleGrantedAuthority("ROLE_" + role.name()));
+        // Permissions are the authorities used by Spring Security hasAuthority()
+        return permissions.stream()
+                .map(SimpleGrantedAuthority::new)
+                .collect(Collectors.toList());
+    }
+
+    public boolean hasPermission(String permission) {
+        return permissions.contains(permission);
+    }
+
+    public boolean hasRole(String roleName) {
+        return roles.contains(roleName);
     }
 
     @Override

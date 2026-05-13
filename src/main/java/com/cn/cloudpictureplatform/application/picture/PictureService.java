@@ -47,7 +47,7 @@ import com.cn.cloudpictureplatform.domain.team.TeamMember;
 import com.cn.cloudpictureplatform.domain.team.TeamRole;
 import com.cn.cloudpictureplatform.domain.team.TeamMemberStatus;
 import com.cn.cloudpictureplatform.domain.user.AppUser;
-import com.cn.cloudpictureplatform.domain.user.UserRole;
+import java.util.Set;
 import com.cn.cloudpictureplatform.domain.storage.StorageResult;
 import com.cn.cloudpictureplatform.domain.storage.StorageService;
 import com.cn.cloudpictureplatform.application.search.SearchIndexService;
@@ -183,12 +183,12 @@ public class PictureService {
         return toResponse(saved);
     }
 
-    public PictureDetailResponse getPictureDetail(UUID pictureId, UUID requesterId, UserRole requesterRole) {
+    public PictureDetailResponse getPictureDetail(UUID pictureId, UUID requesterId, Set<String> requesterRoles) {
         PictureAsset asset = pictureAssetRepository.findById(pictureId)
                 .orElseThrow(() -> new ApiException(ApiErrorCode.NOT_FOUND, "picture not found"));
         Space space = spaceRepository.findById(asset.getSpaceId())
                 .orElseThrow(() -> new ApiException(ApiErrorCode.NOT_FOUND, "space not found"));
-        boolean isAdmin = requesterRole == UserRole.ADMIN;
+        boolean isAdmin = requesterRoles != null && requesterRoles.contains("ROLE_ADMIN");
         TeamMember activeTeamMember = resolveActiveTeamMember(space, requesterId);
         if (!canView(asset, space, requesterId, isAdmin, activeTeamMember)) {
             throw new ApiException(ApiErrorCode.FORBIDDEN, "insufficient permissions");
@@ -385,7 +385,7 @@ public class PictureService {
             cacheNames = "pictureSearch",
             key = "T(java.util.Arrays).asList(#page,#size,#keyword,#ownerId,#spaceId,#visibility,#reviewStatus,"
                     + "#minSizeBytes,#maxSizeBytes,#createdAfter,#createdBefore,#orientation,#tag,#tagId,"
-                    + "#sortBy,#sortDir,#requesterId,#requesterRole)"
+                    + "#sortBy,#sortDir,#requesterId,#requesterRoles)"
     )
     public PageResponse<PictureSummary> searchPictures(
             int page,
@@ -405,14 +405,14 @@ public class PictureService {
             String sortBy,
             String sortDir,
             UUID requesterId,
-            UserRole requesterRole
+            Set<String> requesterRoles
     ) {
         int pageIndex = Math.max(0, page);
         int pageSize = Math.min(Math.max(1, size), 100);
         String normalizedKeyword = normalizeKeyword(keyword);
         Sort sort = resolveKeywordAwareSort(normalizedKeyword, sortBy, sortDir);
         var pageable = PageRequest.of(pageIndex, pageSize, sort);
-        boolean isAdmin = requesterRole == UserRole.ADMIN;
+        boolean isAdmin = requesterRoles != null && requesterRoles.contains("ROLE_ADMIN");
         List<UUID> teamSpaceIds = resolveTeamSpaceIds(isAdmin, requesterId);
         Specification<PictureAsset> spec = (root, query, builder) -> {
             List<Predicate> predicates = new ArrayList<>();

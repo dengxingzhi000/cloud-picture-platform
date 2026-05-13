@@ -63,7 +63,7 @@ class PictureControllerTests {
     void shouldBuildEditorSessionContract() {
         UUID pictureId = UUID.randomUUID();
         UUID userId = UUID.randomUUID();
-        AppUserPrincipal principal = new AppUserPrincipal(userId, "alice", "secret", true, UserRole.USER);
+        AppUserPrincipal principal = new AppUserPrincipal(userId, "alice", "secret", true, java.util.Set.of("ROLE_USER"), java.util.Set.of());
         PictureEditorDocumentResponse document = PictureEditorDocumentResponse.builder()
                 .pictureId(pictureId)
                 .schemaVersion(PictureDocumentService.DOCUMENT_SCHEMA_VERSION)
@@ -71,8 +71,8 @@ class PictureControllerTests {
                 .elements(List.of())
                 .build();
 
-        when(pictureCollabAccessService.canAccess(pictureId, userId, UserRole.USER)).thenReturn(true);
-        when(pictureService.getPictureDetail(pictureId, userId, UserRole.USER))
+        when(pictureCollabAccessService.canAccess(pictureId, userId, java.util.Set.of())).thenReturn(true);
+        when(pictureService.getPictureDetail(pictureId, userId, java.util.Set.of("ROLE_USER")))
                 .thenReturn(com.cn.cloudpictureplatform.interfaces.picture.dto.PictureDetailResponse.builder()
                         .id(pictureId)
                         .canEdit(true)

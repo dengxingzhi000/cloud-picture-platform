@@ -20,7 +20,6 @@ import org.springframework.web.multipart.MultipartFile;
  * 2. pHash (Perceptual Hash): 基于DCT的感知哈希，对压缩、亮度变化鲁棒
  * 3. dHash (Difference Hash): 基于梯度差异的哈希，计算快速
  * 4. aHash (Average Hash): 基于平均灰度的哈希，最简单快速
- * 参考: http://www.hackerfactor.com/blog/index.php?/archives/432-Looks-Like-It.html
  */
 @Service
 public class PerceptualHashService {
