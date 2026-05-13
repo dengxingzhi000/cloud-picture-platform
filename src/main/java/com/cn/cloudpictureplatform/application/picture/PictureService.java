@@ -5,7 +5,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -67,7 +66,6 @@ import com.cn.cloudpictureplatform.interfaces.picture.dto.PictureTagItemRequest;
 import com.cn.cloudpictureplatform.interfaces.picture.dto.PictureTagResponse;
 import com.cn.cloudpictureplatform.interfaces.picture.dto.PictureResponse;
 import com.cn.cloudpictureplatform.interfaces.picture.dto.PictureSummary;
-import com.cn.cloudpictureplatform.websocket.NotificationPublisher;
 
 @Service
 public class PictureService {
@@ -81,7 +79,7 @@ public class PictureService {
     private final SearchIndexService searchIndexService;
     private final TeamMemberRepository teamMemberRepository;
     private final TeamRepository teamRepository;
-    private final NotificationPublisher notificationPublisher;
+    private final org.springframework.context.ApplicationEventPublisher eventPublisher;
 
     public PictureService(
             StorageService storageService,
@@ -94,7 +92,7 @@ public class PictureService {
             SearchIndexService searchIndexService,
             TeamMemberRepository teamMemberRepository,
             TeamRepository teamRepository,
-            NotificationPublisher notificationPublisher
+            org.springframework.context.ApplicationEventPublisher eventPublisher
     ) {
         this.storageService = storageService;
         this.pictureAssetRepository = pictureAssetRepository;
@@ -106,7 +104,7 @@ public class PictureService {
         this.searchIndexService = searchIndexService;
         this.teamMemberRepository = teamMemberRepository;
         this.teamRepository = teamRepository;
-        this.notificationPublisher = notificationPublisher;
+        this.eventPublisher = eventPublisher;
     }
 
     @Transactional
@@ -174,11 +172,13 @@ public class PictureService {
                 .build();
         PictureAsset saved = pictureAssetRepository.save(asset);
 
-        space.setUsedBytes(space.getUsedBytes() + storageResult.getSizeBytes());
-        spaceRepository.save(space);
+        spaceRepository.incrementUsedBytes(space.getId(), storageResult.getSizeBytes());
 
         searchIndexService.enqueuePicture(saved.getId());
-        notifyUploadRelatedParties(saved, space, ownerId);
+        eventPublisher.publishEvent(new PictureUploadedEvent(
+                saved.getId(), saved.getName(), ownerId, space.getId(),
+                space.getTeamId(), resolvedVisibility == Visibility.PUBLIC
+        ));
 
         return toResponse(saved);
     }
@@ -240,7 +240,7 @@ public class PictureService {
     }
 
     @Cacheable(cacheNames = "pictureRecommendations",
-            key = "T(java.util.Arrays).asList(#page, #size, #requesterId)")
+            key = "{ 'v1', #page, #size, #requesterId }")
     public PageResponse<PictureSummary> recommendPublic(int page, int size, UUID requesterId) {
         int pageIndex = Math.max(0, page);
         int pageSize = Math.min(Math.max(1, size), 100);
@@ -302,7 +302,7 @@ public class PictureService {
 
     @Cacheable(
             cacheNames = "publicGallery",
-            key = "T(java.util.Arrays).asList(#page,#size,#keyword,#minSizeBytes,#maxSizeBytes,#orientation)"
+            key = "{ 'v1', #page, #size, #keyword, #minSizeBytes, #maxSizeBytes, #orientation }"
     )
     public PageResponse<PictureSummary> listPublic(
             int page,
@@ -383,9 +383,9 @@ public class PictureService {
 
     @Cacheable(
             cacheNames = "pictureSearch",
-            key = "T(java.util.Arrays).asList(#page,#size,#keyword,#ownerId,#spaceId,#visibility,#reviewStatus,"
-                    + "#minSizeBytes,#maxSizeBytes,#createdAfter,#createdBefore,#orientation,#tag,#tagId,"
-                    + "#sortBy,#sortDir,#requesterId,#requesterRoles)"
+            key = "{ 'v1', #page, #size, #keyword, #ownerId, #spaceId, #visibility, #reviewStatus,"
+                    + "#minSizeBytes, #maxSizeBytes, #createdAfter, #createdBefore, #orientation, #tag, #tagId,"
+                    + "#sortBy, #sortDir, #requesterId, #requesterRoles }"
     )
     public PageResponse<PictureSummary> searchPictures(
             int page,
@@ -530,7 +530,7 @@ public class PictureService {
                 .toList();
     }
 
-    @Cacheable(cacheNames = "adminPending", key = "T(java.util.Arrays).asList(#page,#size)")
+    @Cacheable(cacheNames = "adminPending", key = "{ 'v1', #page, #size }")
     public PageResponse<AdminPictureSummary> listPending(int page, int size) {
         int pageIndex = Math.max(0, page);
         int pageSize = Math.min(Math.max(1, size), 100);
@@ -638,14 +638,10 @@ public class PictureService {
         moderationRecordRepository.save(record);
 
         searchIndexService.enqueuePicture(saved.getId());
-        AppUser owner = appUserRepository.findById(saved.getOwnerId()).orElse(null);
-        notificationPublisher.notifyReviewDecision(
-                owner == null ? null : owner.getUsername(),
-                saved.getId(),
-                saved.getName(),
-                status == ReviewStatus.APPROVED,
-                record.getReason()
-        );
+        eventPublisher.publishEvent(new PictureReviewedEvent(
+                saved.getId(), saved.getName(), saved.getOwnerId(),
+                status == ReviewStatus.APPROVED, record.getReason()
+        ));
 
         return toResponse(saved);
     }
@@ -717,8 +713,8 @@ public class PictureService {
 
     @Cacheable(
             cacheNames = "moderationHistory",
-            key = "T(java.util.Arrays).asList(#pictureId,#page,#size,#reviewerId,#fromStatus,#toStatus,#reviewedAfter,"
-                    + "#reviewedBefore,#sortBy,#sortDir)"
+            key = "{ 'v1', #pictureId, #page, #size, #reviewerId, #fromStatus, #toStatus, #reviewedAfter,"
+                    + "#reviewedBefore, #sortBy, #sortDir }"
     )
     public PageResponse<ModerationRecordResponse> listModerationHistory(
             UUID pictureId,
@@ -804,40 +800,6 @@ public class PictureService {
                 .height(asset.getHeight())
                 .contentType(asset.getContentType())
                 .build();
-    }
-
-    private void notifyUploadRelatedParties(PictureAsset asset, Space space, UUID ownerId) {
-        AppUser owner = appUserRepository.findById(ownerId).orElse(null);
-        String ownerUsername = owner == null ? null : owner.getUsername();
-        notificationPublisher.notifyUploadCompleted(ownerUsername, asset.getId(), asset.getName());
-
-        if (asset.getVisibility() == Visibility.PUBLIC) {
-            notificationPublisher.notifyAdminNewUpload(
-                    asset.getId(),
-                    asset.getName(),
-                    ownerUsername == null ? "unknown" : ownerUsername
-            );
-        }
-
-        if (space.getType() == SpaceType.TEAM && space.getTeamId() != null) {
-            Collection<String> usernames = teamMemberRepository.findByTeamIdAndStatus(
-                            space.getTeamId(),
-                            TeamMemberStatus.ACTIVE
-                    ).stream()
-                    .map(TeamMember::getUserId)
-                    .filter(userId -> !userId.equals(ownerId))
-                    .map(userId -> appUserRepository.findById(userId).orElse(null))
-                    .filter(Objects::nonNull)
-                    .map(AppUser::getUsername)
-                    .filter(StringUtils::hasText)
-                    .toList();
-            notificationPublisher.notifyTeamPictureUploaded(
-                    usernames,
-                    asset.getId(),
-                    asset.getName(),
-                    ownerUsername == null ? "unknown" : ownerUsername
-            );
-        }
     }
 
     private PictureTagResponse toTagResponse(PictureTag tag) {
