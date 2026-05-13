@@ -24,8 +24,8 @@ spring:
     baseline-version: 0
   data:
     redis:
-      host: 192.168.80.132
-      port: 6379
+      host: ${REDIS_HOST:192.168.80.132}
+      port: ${REDIS_PORT:6379}
   cache:
     type: redis
     redis:

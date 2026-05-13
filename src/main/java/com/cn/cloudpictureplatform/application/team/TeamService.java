@@ -120,14 +120,20 @@ public class TeamService {
         Map<UUID, UUID> teamSpaceMap = spaceRepository.findByTeamIdIn(teamIds).stream()
                 .collect(Collectors.toMap(Space::getTeamId, Space::getId));
 
+        Map<UUID, Long> memberCountMap = teamMemberRepository
+                .countByTeamIdInAndStatus(teamIds, TeamMemberStatus.ACTIVE).stream()
+                .collect(Collectors.toMap(
+                        TeamMemberRepository.TeamMemberCount::getTeamId,
+                        TeamMemberRepository.TeamMemberCount::getCnt
+                ));
+
         List<TeamSummaryResponse> responses = new ArrayList<>();
         for (TeamMember membership : memberships) {
             Team team = teamMap.get(membership.getTeamId());
             if (team == null) {
                 continue;
             }
-            long memberCount = teamMemberRepository.countByTeamIdAndStatus(
-                    membership.getTeamId(), TeamMemberStatus.ACTIVE);
+            long memberCount = memberCountMap.getOrDefault(membership.getTeamId(), 0L);
             responses.add(TeamSummaryResponse.builder()
                     .id(team.getId())
                     .name(team.getName())
