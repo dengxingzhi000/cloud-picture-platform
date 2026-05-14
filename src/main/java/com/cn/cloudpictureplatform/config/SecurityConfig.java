@@ -12,7 +12,11 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.HttpMethod;
+import com.cn.cloudpictureplatform.application.apikey.ApiKeyService;
+import com.cn.cloudpictureplatform.infrastructure.security.ApiKeyAuthFilter;
 import com.cn.cloudpictureplatform.infrastructure.security.JwtAuthenticationFilter;
 
 @Configuration
@@ -22,9 +26,11 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(
             HttpSecurity http,
-            JwtAuthenticationFilter jwtAuthenticationFilter
+            JwtAuthenticationFilter jwtAuthenticationFilter,
+            @Autowired(required = false) StringRedisTemplate redisTemplate,
+            ApiKeyService apiKeyService
     ) {
-        return http
+        var chain = http
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -38,8 +44,12 @@ public class SecurityConfig {
                         .requestMatchers("/api/admin/**").hasAuthority("admin:review")
                         .anyRequest().authenticated()
                 )
-                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
-                .build();
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+        if (redisTemplate != null) {
+            chain.addFilterBefore(new ApiKeyAuthFilter(apiKeyService, redisTemplate),
+                    UsernamePasswordAuthenticationFilter.class);
+        }
+        return chain.build();
     }
 
     @Bean
