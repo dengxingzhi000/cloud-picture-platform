@@ -1,4 +1,4 @@
-# Cloud Picture Platform 功能演进与 AI 能力建设路线图
+﻿# Cloud Picture Platform 功能演进与 AI 能力建设路线图
 
 ## 总体思路
 
@@ -646,3 +646,165 @@ GET /api/admin/ai/metrics
 | AI 调用成本超预算 | 中 | 高 | 每日限额 + 降级开关 + 按团队计费 |
 | 内容审核误判引发用户投诉 | 中 | 高 | 保留人工复核入口，误判可申诉 |
 | pgvector 性能不满足 | 低 | 高 | 提前压测，超过千万量级切 Milvus |
+---
+
+## 六、前端演进路线
+
+> 基于 React 19 + TypeScript + Vite 技术栈，与后端功能演进同步推进
+
+### Phase 1 — 资产治理（第 1-8 周）
+
+```
+功能点                             对应后端         技术要点
+──────────────────────────────────────────────────────────
+相册管理页面（创建/编辑/排序）       1.1             react-router 嵌套路由，拖拽排序
+空间用量仪表盘                     1.2             recharts / @nivo 用量趋势图
+图片版本时间线                     1.3             横向时间轴 GSAP 动画
+批量选择工具栏                     1.4             React Context 管理选中状态，Shift 多选
+```
+
+**关键组件：**
+
+```
+src/react-app/pages/
+├── album/
+│   ├── AlbumListPage.tsx
+│   ├── AlbumDetailPage.tsx
+│   └── AlbumSelectorDialog.tsx      → shadcn Dialog 弹窗选相册
+src/react-app/components/
+├── space/
+│   └── UsageDashboard.tsx           → 用量仪表盘
+└── picture/
+    ├── VersionTimeline.tsx          → 版本时间线
+    └── BatchActionBar.tsx           → 批量操作浮动栏
+```
+
+### Phase 2 — 协作体验升级（第 9-16 周）
+
+```
+功能点                             对应后端         技术要点
+──────────────────────────────────────────────────────────
+图片评论区（含坐标标注）           2.1             Canvas 叠加标注，MouseEvent 坐标映射
+水印预览                          2.2             实时水印效果预览（Canvas 合成）
+导出规格选择器                     2.2             shadcn Select + 自定义预设
+团队动态流                         2.3             IntersectionObserver 无限滚动 + STOMP 实时
+```
+
+**关键组件：**
+
+```
+src/react-app/components/
+├── comment/
+│   ├── CommentThread.tsx            → 评论线程
+│   └── ImageAnnotator.tsx           → 图片坐标标注（Canvas）
+├── export/
+│   ├── ExportPresetSelector.tsx
+│   └── ExportTaskStatus.tsx         → 轮询/SSE 进度跟踪
+└── activity/
+    └── ActivityFeed.tsx             → 动态流
+```
+
+### Phase 3 — 开放能力（第 17-24 周）
+
+```
+功能点                             对应后端         技术要点
+──────────────────────────────────────────────────────────
+Webhook 配置面板                   3.1             shadcn Switch + JSON 编辑器
+API Key 管理页                     3.2            密钥创建/吊销/复制
+开发者文档门户                     3.2             Swagger UI iframe 嵌入
+AI 标签反馈入口                   AI Phase 1-2     Thumbs up/down 交互，乐观更新
+```
+
+### 前端通用基础设施
+
+```
+阶段      任务                             技术方案
+─────────────────────────────────────────────────────
+Phase 1   无限滚动列表                      IntersectionObserver + react-router search params
+Phase 1   STOMP 实时消息统一管理            @stomp/stompjs + sockjs-client
+Phase 2   图片标注 Canvas 工具集            Canvas 2D API + useRef
+Phase 2   批量操作状态管理                  React Context + useReducer 乐观更新
+Phase 3   OpenAPI 客户端自动生成            openapi-typescript（从 Swagger 产出的 TS 类型）
+Phase 3   国际化 i18n                       react-i18next（扩展 zh-CN/en）
+```
+
+---
+
+## 七、基础设施与 DevOps 演进
+
+### 基础设施路线图
+
+```
+Phase 1（Week 1-8）
+├── CI/CD 流水线：Maven 构建 → 单元测试 → Docker 镜像 → 部署
+├── SonarQube 代码质量门禁
+├── Prometheus + Grafana 监控大盘
+└── ELK / Loki 日志聚合
+
+Phase 2（Week 9-16）
+├── RabbitMQ 监控（队列深度、消费延迟）
+├── AI 中台 GPU 资源监控
+├── 数据库连接池 + 慢查询监控
+└── 端到端 APM（SkyWalking / OpenTelemetry）
+
+Phase 3（Week 17-24）
+├── Kubernetes 部署（开发环境先行）
+├── HPA 弹性伸缩策略
+├── 蓝绿发布 / 金丝雀发布
+└── 多区域容灾
+```
+
+### 性能目标
+
+```
+指标             当前基线      目标        测量方式
+─────────────────────────────────────────────────────
+图片上传 P99      1.2s         800ms      K6 压测
+图片搜索 P99      300ms        200ms      K6 压测
+AI 打标 P99       无           3s         AI 中台日志
+AI 审核 P99       无           2s         AI 中台日志
+系统可用性        99.5%        99.9%       Prometheus
+```
+
+---
+
+## 八、成功度量指标
+
+### 业务指标
+
+```
+指标                            目标             数据来源
+─────────────────────────────────────────────────────────
+团队月活跃用户 (MAU)             +30%             用户行为表
+人均存储图片数                   +50%             空间用量
+图片二次使用率（下载/引用）      +40%             用户行为表
+批量操作使用率                   30% 活跃团队     功能埋点
+Webhook / API Key 激活率         20% 企业团队     数据库
+```
+
+### AI 效果指标
+
+```
+AI 能力      核心指标                目标          采集方式
+──────────────────────────────────────────────────────────
+智能标签     用户标签接受率           > 75%        标签反馈事件
+             自动标签覆盖度           > 60% 图片    打标记录
+智能审核     自动通过率               > 70%        审核记录
+             误判率（人工纠正比例）    < 5%         AI审核 + 人工复核对比
+语义搜索     语义搜索点击率           > 60%        搜索事件埋点
+             搜索满意度（用户反馈）    > 4.0/5.0    问卷/隐式反馈
+智能助手     任务完成率               > 80%        对话结束后的确认
+             用户留存率               > 30% 周留存  使用频率统计
+```
+
+### 技术指标
+
+```
+指标                        目标            监控工具
+─────────────────────────────────────────────────────
+构建流水线通过率              > 98%          CI Dashboard
+AI 中台可用性                 > 99.5%        Prometheus
+消息队列积压恢复时间          < 5 分钟      告警 + 自动扩容
+数据库慢查询（>200ms）        < 0.1%         pg_stat_statements
+前端页面加载时间（LCP）       < 2.5 秒       Lighthouse CI
+```

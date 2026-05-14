@@ -1,4 +1,4 @@
-# Java 主业务 + Python AI 中台架构设计方案
+﻿# Java 主业务 + Python AI 中台架构设计方案
 
 ## 架构决策背景
 
@@ -1119,3 +1119,467 @@ Phase 5：数据飞轮（Week 23-26）
 | 模型版本升级影响结果一致性 | 版本号写入每条 AI 记录，升级时旧数据保留，新数据用新模型 |
 | 消息队列积压 | 监控队列深度，超阈值告警 + 临时增加 Worker 副本 |
 | 向量搜索冷启动效果差 | 混合检索权重可动态调整，初期向量权重低，随数据积累逐步提升 |
+---
+
+## 七、Java ↔ Python API 契约定义
+
+> 所有同步 HTTP 接口使用 JSON 格式，异步任务通过 RabbitMQ 消息传递
+
+### 7.1 同步接口清单
+
+```
+接口路径                         方法    Java 侧调用方      超时    说明
+──────────────────────────────────────────────────────────────────────
+/api/v1/embedding/text           POST   EmbeddingClient     5s     文本→向量
+/api/v1/embedding/image          POST   EmbeddingClient     10s    图片→向量
+/api/v1/assistant/chat           POST   AssistantClient     30s    对话助手
+/health                          GET    负载均衡/探针       3s     健康检查
+```
+
+### 7.2 Embedding 接口契约
+
+```json
+// POST /api/v1/embedding/text
+// Request (Java → Python)
+{
+  "input_type": "text",
+  "content": "夕阳下的海滩",
+  "content_hash": "md5(content)"
+}
+
+// Response (Python → Java): 200 OK
+{
+  "vector": [0.012, -0.023, ..., 0.045],
+  "model": "clip-vit-large-patch14",
+  "dimension": 768
+}
+
+// Error Response: 4xx/5xx
+{
+  "error": {
+    "code": "MODEL_NOT_READY",
+    "message": "CLIP model is still loading"
+  }
+}
+```
+
+```json
+// POST /api/v1/embedding/image
+// Request
+{
+  "input_type": "image",
+  "content": "https://cdn.example.com/pictures/xxx.jpg",
+  "content_hash": "sha256(url)"
+}
+
+// Response: 同文本向量化
+```
+
+### 7.3 异步消息契约
+
+**打标任务提交 (Java → Python)：**
+
+```
+Exchange:    ai.exchange (TOPIC)
+RoutingKey:  ai.tagging.submit
+Queue:       ai.tagging.submit
+
+Payload:
+{
+  "taskId": "uuid",
+  "pictureId": "uuid",
+  "imageUrl": "https://...",
+  "imageUrlHash": "sha256(url)",
+  "minConfidence": 0.65,
+  "maxTags": 20,
+  "enableDescriptiveTags": true,
+  "submittedAt": "2025-01-15T10:30:00Z"
+}
+```
+
+**打标结果回传 (Python → Java)：**
+
+```
+Exchange:    ai.exchange (TOPIC)
+RoutingKey:  ai.tagging.result
+Queue:       ai.tagging.result
+
+Payload (成功):
+{
+  "taskId": "uuid",
+  "pictureId": "uuid",
+  "success": true,
+  "tags": [
+    {"text": "海滩", "confidence": 0.95, "category": "general", "source": "clip"},
+    {"text": "日落", "confidence": 0.88, "category": "general", "source": "clip"}
+  ],
+  "provider": "clip-vit-large-patch14",
+  "modelVersion": "openai",
+  "processingMs": 1200
+}
+
+Payload (失败):
+{
+  "taskId": "uuid",
+  "pictureId": "uuid",
+  "success": false,
+  "errorMessage": "Image download failed: timeout",
+  "errorCode": "DOWNLOAD_TIMEOUT",
+  "processingMs": 5000
+}
+```
+
+**审核任务提交 (Java → Python)：**
+
+```
+Exchange:    ai.exchange (TOPIC)
+RoutingKey:  ai.moderation.submit
+Queue:       ai.moderation.submit
+
+Payload:
+{
+  "taskId": "uuid",
+  "pictureId": "uuid",
+  "imageUrl": "https://...",
+  "imageUrlHash": "sha256(url)",
+  "submittedAt": "2025-01-15T10:30:00Z"
+}
+```
+
+**审核结果回传 (Python → Java)：**
+
+```
+Exchange:    ai.exchange (TOPIC)
+RoutingKey:  ai.moderation.result
+Queue:       ai.moderation.result
+
+Payload:
+{
+  "taskId": "uuid",
+  "pictureId": "uuid",
+  "success": true,
+  "safe": false,
+  "confidence": 0.97,
+  "violationCategories": ["pornographic", "explicit"],
+  "provider": "aliyun-content-safety",
+  "modelVersion": "v2.1",
+  "processingMs": 850,
+  "rawResponse": "..."
+}
+```
+
+### 7.4 消息队列拓扑
+
+```
+                               ┌──────────────────┐
+                               │  ai.exchange      │
+                               │  (TOPIC)          │
+                               └────┬──────┬───────┘
+                                    │      │
+                    ┌───────────────┘      └───────────────┐
+                    │                                      │
+         ┌──────────▼──────────┐            ┌──────────────▼──────────┐
+         │ ai.tagging.submit   │            │ ai.moderation.submit    │
+         │ (Java → Python)     │            │ (Java → Python)         │
+         └──────────┬──────────┘            └──────────────┬──────────┘
+                    │                                      │
+         ┌──────────▼──────────┐            ┌──────────────▼──────────┐
+         │  Python Tagging     │            │  Python Moderation      │
+         │  Worker             │            │  Worker                 │
+         └──────────┬──────────┘            └──────────────┬──────────┘
+                    │                                      │
+         ┌──────────▼──────────┐            ┌──────────────▼──────────┐
+         │ ai.tagging.result   │            │ ai.moderation.result    │
+         │ (Python → Java)     │            │ (Python → Java)         │
+         └─────────────────────┘            └─────────────────────────┘
+
+死信队列 (所有 Consumer 共有):
+  ai.dlx → ai.dlq (保留原始消息 + 失败原因)
+```
+
+---
+
+## 八、错误处理与重试策略
+
+### 8.1 分层错误处理
+
+```
+Java AI Gateway 层：
+├── 网络超时          → 熔断器打开（默认 30s 恢复）
+├── HTTP 5xx          → 重试 2 次 (间隔 1s, 3s)
+├── HTTP 4xx          → 不重试，记录错误
+└── 消息队列不可用     → Redis 本地暂存 + 定时重发
+
+Python AI 中台层：
+├── 模型加载失败       → 返回 MODEL_NOT_READY
+├── 图片下载失败       → 重试 1 次 (换 CDN 源)
+├── 外部 API 限流      → 等待 + 指数退避
+└── OOM/GPU OOM       → 进程重启 (supervisor)
+```
+
+### 8.2 消息队列重试策略
+
+```yaml
+# RabbitMQ 重试配置
+spring:
+  rabbitmq:
+    listener:
+      simple:
+        retry:
+          enabled: true
+          max-attempts: 3
+          initial-interval: 1000ms
+          multiplier: 2.0
+          max-interval: 10000ms
+    template:
+      retry:
+        enabled: true
+        max-attempts: 3
+        initial-interval: 2000ms
+
+# 超过重试次数 → 进入死信队列
+# 死信队列告警 → 人工介入处理
+```
+
+### 8.3 熔断降级矩阵
+
+```
+AI 服务不可用时，各业务的降级行为：
+
+业务场景        触发条件         降级行为                   用户感知
+─────────────────────────────────────────────────────────────────────
+语义搜索        embed 5s 超时     切关键词搜索                无感知
+自动打标        队列积压 > 1000   跳过自动打标，手动触发      标签为空
+智能审核        审核服务不可用     全部转人工                  审核延迟
+以图搜图        embed 10s 超时    返回空结果                  无结果
+对话助手        chat 30s 超时     返回"服务暂时不可用"         错误提示
+```
+
+---
+
+## 九、测试策略
+
+### 9.1 Java 侧测试
+
+```yaml
+单元测试（JUnit 5 + Mockito）:
+  AiGatewayImplTest:           Mock HttpClient，验证熔断逻辑
+  AiTaggingResultConsumerTest: Mock PictureTagService，验证消费逻辑
+  SpaceQuotaServiceTest:       Mock SpaceRepository，验证配额校验
+  HybridSearchServiceTest:     Mock EmbeddingClient，验证 RRF 融合
+
+集成测试（Spring Boot Test + Testcontainers）:
+  AiGatewayIntegrationTest:    启动 RabbitMQ + Mock AI 中台
+  AiModerationFlowTest:       完整上传→审核→结果回写流程
+  MessageQueueFailureTest:    RabbitMQ 宕机时的降级行为
+
+契约测试（Spring Cloud Contract / Pact）:
+  Python → Java:             验证 AI 中台返回的消息格式
+  Java → Python:             验证 Java 发出的请求格式
+```
+
+### 9.2 Python 侧测试
+
+```yaml
+单元测试（pytest）:
+  test_clip_model.py:           Mock torch，验证预处理逻辑
+  test_tagging_service.py:      Mock ModelRegistry，验证业务逻辑
+  test_embedding_service.py:    Mock ClipModel，验证缓存逻辑
+
+集成测试（pytest + docker-compose）:
+  test_api_endpoints.py:       启动 FastAPI test client
+  test_worker_flow.py:        启动 RabbitMQ，验证消费→处理→回发
+  test_model_loading.py:       验证模型懒加载和健康检查
+
+模型测试（pytest）:
+  test_tagging_accuracy.py:    使用标注数据集验证打标准确率
+  test_embedding_dimension.py: 验证向量维度符合预期
+  test_model_switch.py:        验证模型热替换不影响进行中任务
+
+性能测试（locust / k6）:
+  embedding_api_load_test:     QPS > 50, P99 < 3s
+  worker_throughput_test:      单个 Worker > 10 task/s
+```
+
+### 9.3 端到端测试
+
+```
+测试场景                                   工具             频率
+───────────────────────────────────────────────────────────────────
+图片上传 → 自动打标 → 标签落库            Playwright       每次发布
+图片上传 → AI 审核 → 自动/人工流转        Playwright       每次发布
+语义搜索 → 混合检索 → 结果排序            REST Assured     每日
+AI 中台宕机 → Java 降级 → 核心功能正常    Chaos Monkey     每周
+消息队列积压 → 自动扩容 → 恢复            K6 + K8s HPA     每周
+```
+
+---
+
+## 十、安全设计
+
+### 10.1 Java ↔ Python 通信安全
+
+```
+认证方式          适用范围                  实现方案
+─────────────────────────────────────────────────────────
+内部 API Key      AI中台HTTP接口            Header: X-Api-Key (HS256)
+mTLS              生产环境                 双向证书验证
+网络隔离          Kubernetes内部            仅 ClusterIP，不暴露公网
+```
+
+### 10.2 AI 服务安全
+
+```
+风险                      措施
+─────────────────────────────────────────────────────────
+图片内容通过公网传输      内网传输优先，跨网强制 HTTPS
+AI 中台被攻击横向移动      最小权限容器，只暴露必要端口
+模型文件被篡改             模型文件 SHA-256 校验
+训练数据泄露               图片脱敏处理（人脸模糊后再用于训练）
+API Key 泄露               自动轮换 + 运行时检测异常调用
+```
+
+### 10.3 数据安全
+
+```
+数据分类          处理方式
+─────────────────────────────────────────────────────────
+上传图片          处理后不保留原图在 AI 中台
+向量数据          pgvector 存储，不包含原始图片内容
+AI 标签           关联 pictureId，不包含用户信息
+审核记录          保留 180 天，到期自动清理
+用户行为数据      脱敏后用于推荐，支持用户删除
+```
+
+### 10.4 审计日志
+
+```java
+// 所有 AI 调用记录到 ai_call_audit 表
+// 关键审计事件：
+//   - AI 调用失败（记录错误码、耗时）
+//   - 自动审核误判（人工纠正时记录）
+//   - 熔断器打开/关闭
+//   - 模型版本切换
+
+// 审计日志保留策略：
+//   - 在线查询：30 天
+//   - 归档存储：1 年（冷存储）
+```
+
+---
+
+## 十一、可观测性
+
+### 11.1 日志规范
+
+```
+日志格式（结构化 JSON）：
+{
+  "timestamp": "2025-01-15T10:30:00.123Z",
+  "level": "INFO",
+  "service": "ai-platform",
+  "traceId": "abc123...",
+  "spanId": "def456...",
+  "message": "Tagging completed",
+  "fields": {
+    "pictureId": "uuid",
+    "taskId": "uuid",
+    "processingMs": 1200,
+    "tagCount": 8
+  }
+}
+
+日志级别约定：
+  ERROR: AI 调用失败、模型加载失败、队列消费异常
+  WARN:  降级触发、重试、缓存未命中
+  INFO:  任务完成、模型加载、配置变更
+  DEBUG: 详细请求/响应（仅调试环境）
+```
+
+### 11.2 监控指标
+
+```yaml
+Prometheus 指标（Java 侧）:
+  ai_gateway_requests_total{service, status}           # 请求总数
+  ai_gateway_latency_seconds{service}                  # 延迟分布
+  ai_gateway_circuit_breaker_state{service}            # 熔断器状态
+  ai_gateway_fallback_total{service}                   # 降级次数
+  ai_mq_queue_depth{queue}                             # 队列积压深度
+  ai_task_duration_seconds{task_type}                  # 异步任务耗时
+
+Prometheus 指标（Python 侧）:
+  ai_model_health{model_name}                          # 模型健康状态
+  ai_model_inference_seconds{model_name}               # 模型推理耗时
+  ai_model_memory_bytes{model_name}                    # 模型显存占用
+  ai_api_requests_total{endpoint, status}              # API 请求数
+  ai_api_latency_seconds{endpoint}                     # API 延迟
+  ai_worker_processed_total{worker_type}               # Worker 处理数
+```
+
+### 11.3 告警规则
+
+```yaml
+# PrometheusRule
+告警名称                          条件                             严重度
+─────────────────────────────────────────────────────────────────────
+AiGatewayHighErrorRate            ai_gateway_requests_total{status="5xx"} > 10%      critical
+AiCircuitBreakerOpen              ai_gateway_circuit_breaker_state == 1             warning
+AiModerationAutoApprovalDrop      auto_approval_rate < 50%                         warning
+AiTaggingAccuracyDrop             tag_user_acceptance_rate < 60%                    warning
+AiMqQueueBacklog                  ai_mq_queue_depth > 10000                        critical
+AiModelNotReady                   ai_model_health == 0                             critical
+AiEmbeddingP99High                ai_api_latency_seconds{p99} > 5                  warning
+```
+
+### 11.4 链路追踪
+
+```
+Java 侧：OpenTelemetry Agent 自动注入 trace
+Python 侧：OpenTelemetry SDK 手动埋点
+
+关键追踪路径：
+  用户上传图片                  → Java PictureService
+    → Java AiGateway.submitTaggingTask() → RabbitMQ
+    → Python TaggingWorker.process()     → CLIP 推理
+    → RabbitMQ result                    → Java AiTaggingResultConsumer
+
+每个环节记录：
+  - 开始时间、结束时间、耗时
+  - 成功/失败标记
+  - 关键参数（图片 ID、模型版本）
+```
+
+### 11.5 AI 效果监控看板
+
+```
+Grafana Dashboard "AI Platform Overview":
+
+行 1：AI 服务健康状态
+├── 各模型健康 (Gauge)
+├── 熔断器状态 (Gauge)
+└── 队列深度 (Time series)
+
+行 2：打标效果
+├── 标签接受率 (Gauge, 24h 滚动)
+├── 平均置信度 (Gauge)
+├── 每图片标签数分布 (Histogram)
+└── 打标延迟 P50/P95/P99 (Time series)
+
+行 3：审核效果
+├── 自动通过率 (Gauge)
+├── 误判率 (Gauge)
+├── 各违规类别分布 (Bar chart)
+└── 审核延迟 (Time series)
+
+行 4：搜索效果
+├── 语义搜索点击率 (Time series)
+├── 关键词搜索点击率 (Time series)
+├── 搜索 QPS (Time series)
+└── 向量检索延迟 (Time series)
+
+行 5：成本 & 资源
+├── 日调用量 / 费用 (Time series)
+├── GPU 利用率 (Gauge)
+├── 各模型显存占用 (Gauge)
+└── 各团队 AI 调用分布 (Table)
+```
