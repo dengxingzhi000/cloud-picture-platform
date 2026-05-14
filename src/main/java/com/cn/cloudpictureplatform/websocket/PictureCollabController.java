@@ -3,12 +3,13 @@ package com.cn.cloudpictureplatform.websocket;
 import com.cn.cloudpictureplatform.application.picture.PictureDocumentService;
 import com.cn.cloudpictureplatform.common.exception.ApiException;
 import com.cn.cloudpictureplatform.common.web.ApiErrorCode;
-import com.cn.cloudpictureplatform.interfaces.picture.dto.PictureEditorDocumentResponse;
+import com.cn.cloudpictureplatform.application.shared.dto.PictureEditorDocumentResponse;
 import com.cn.cloudpictureplatform.websocket.dto.CollabMessage;
 import com.cn.cloudpictureplatform.websocket.dto.EditorCursorPayload;
 import com.cn.cloudpictureplatform.websocket.dto.EditorSelectionPayload;
 import com.cn.cloudpictureplatform.websocket.dto.PictureDocumentOperationPayload;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -49,14 +50,14 @@ public class PictureCollabController {
 
     private final SimpMessagingTemplate messagingTemplate;
     private final PresenceService presenceService;
-    private final EditLockService editLockService;
+    private final EditLockPort editLockService;
     private final PictureDocumentService pictureDocumentService;
     private final ObjectMapper objectMapper;
 
     public PictureCollabController(
             SimpMessagingTemplate messagingTemplate,
             PresenceService presenceService,
-            EditLockService editLockService,
+            EditLockPort editLockService,
             PictureDocumentService pictureDocumentService,
             ObjectMapper objectMapper
     ) {
@@ -141,7 +142,7 @@ public class PictureCollabController {
         String username = extractUsername(headerAccessor);
         if (userId == null) return;
 
-        boolean granted = editLockService.tryLock(pictureId, userId, username, headerAccessor.getSessionId());
+        boolean granted = editLockService.tryLock(pictureId, userId, username, headerAccessor.getSessionId(), null);
 
         if (granted) {
             PresenceSnapshot.LockInfo lockInfo = editLockService.getLockInfo(pictureId);
@@ -282,7 +283,11 @@ public class PictureCollabController {
                 incoming.getPayload(),
                 PictureDocumentOperationPayload.class
         );
-        editLockService.refreshLock(pictureId, userId);
+        PresenceSnapshot.LockInfo lockInfo = editLockService.refreshLock(pictureId, userId);
+        if (lockInfo == null) {
+            log.warn("User {} attempted annotation without holding lock on picture {}", userId, pictureId);
+            return;
+        }
         try {
             PictureDocumentService.AppliedOperation applied = pictureDocumentService.applyOperation(
                     pictureId,

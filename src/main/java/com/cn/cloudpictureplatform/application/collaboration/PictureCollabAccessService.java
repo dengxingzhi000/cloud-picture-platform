@@ -1,4 +1,4 @@
-package com.cn.cloudpictureplatform.websocket;
+package com.cn.cloudpictureplatform.application.collaboration;
 
 import java.util.Set;
 import java.util.UUID;

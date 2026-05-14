@@ -17,14 +17,15 @@ import org.springframework.messaging.support.MessageHeaderAccessor;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.stereotype.Component;
-import com.cn.cloudpictureplatform.websocket.PictureCollabAccessService;
+import com.cn.cloudpictureplatform.application.collaboration.PictureCollabAccessService;
 
 @Component
 public class WebSocketAuthChannelInterceptor implements ChannelInterceptor {
-
     private static final Pattern PICTURE_TOPIC_PATTERN = Pattern.compile("^/topic/pictures/([0-9a-fA-F\\-]+)/collab$");
     private static final Pattern PICTURE_APP_PATTERN =
             Pattern.compile("^/app/pictures/([0-9a-fA-F\\-]+)/(join|leave|lock|unlock|annotation)$");
+    private static final Pattern ADMIN_TOPIC_PATTERN = Pattern.compile("^/topic/admin/.+");
+    private static final String ROLE_ADMIN = "ROLE_ADMIN";
 
     private final JwtTokenService jwtTokenService;
     private final AppUserDetailsService appUserDetailsService;
@@ -52,53 +53,59 @@ public class WebSocketAuthChannelInterceptor implements ChannelInterceptor {
             return handleConnect(message, accessor);
         }
 
-        enforcePictureCollabAccess(accessor);
+        enforceDestinationAccess(accessor);
         return message;
     }
 
     private Message<?> handleConnect(Message<?> message, StompHeaderAccessor accessor) {
         String authHeader = accessor.getFirstNativeHeader("Authorization");
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            return message;
+            throw new AccessDeniedException("missing or invalid authorization header");
         }
 
         String token = authHeader.substring(7);
         if (!jwtTokenService.isTokenValid(token)) {
-            return message;
+            throw new AccessDeniedException("invalid token");
         }
 
         String username = jwtTokenService.extractUsername(token);
+        AppUserPrincipal principal;
         try {
-            AppUserPrincipal principal =
-                    (AppUserPrincipal) appUserDetailsService.loadUserByUsername(username);
+            principal = (AppUserPrincipal) appUserDetailsService.loadUserByUsername(username);
+        } catch (Exception ex) {
+            throw new AccessDeniedException("user not found: " + username);
+        }
 
-            UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
-                    principal,
-                    null,
-                    principal.getAuthorities()
-            );
-            accessor.setUser(authentication);
+        UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
+                principal,
+                null,
+                principal.getAuthorities()
+        );
+        accessor.setUser(authentication);
 
-            Map<String, Object> sessionAttributes = accessor.getSessionAttributes();
-            if (sessionAttributes != null) {
-                sessionAttributes.put("userId", principal.getId().toString());
-                sessionAttributes.put("username", principal.getUsername());
-                sessionAttributes.put("permissions", principal.getPermissions());
-            }
-        } catch (Exception ignored) {
-            // Unknown user proceeds unauthenticated
+        Map<String, Object> sessionAttributes = accessor.getSessionAttributes();
+        if (sessionAttributes != null) {
+            sessionAttributes.put("userId", principal.getId().toString());
+            sessionAttributes.put("username", principal.getUsername());
+            sessionAttributes.put("permissions", principal.getPermissions());
+            sessionAttributes.put("roles", principal.getRoles());
         }
 
         return message;
     }
 
-    private void enforcePictureCollabAccess(StompHeaderAccessor accessor) {
+    private void enforceDestinationAccess(StompHeaderAccessor accessor) {
         StompCommand command = accessor.getCommand();
         if (command == null) {
             return;
         }
         String destination = accessor.getDestination();
         if (destination == null || destination.isBlank()) {
+            return;
+        }
+
+        if (command == StompCommand.SUBSCRIBE && isAdminTopic(destination)) {
+            enforceAdminAccess(accessor);
             return;
         }
 
@@ -112,9 +119,20 @@ public class WebSocketAuthChannelInterceptor implements ChannelInterceptor {
         }
 
         UUID userId = extractUserId(accessor);
-        Set<String> permissions = extractPermissions(accessor);
+        Set<String> permissions = extractSessionAttribute(accessor, "permissions");
         if (!pictureCollabAccessService.canAccess(pictureId, userId, permissions)) {
             throw new AccessDeniedException("forbidden");
+        }
+    }
+
+    private static boolean isAdminTopic(String destination) {
+        return ADMIN_TOPIC_PATTERN.matcher(destination).matches();
+    }
+
+    private void enforceAdminAccess(StompHeaderAccessor accessor) {
+        Set<String> roles = extractSessionAttribute(accessor, "roles");
+        if (roles == null || !roles.contains(ROLE_ADMIN)) {
+            throw new AccessDeniedException("admin role required");
         }
     }
 
@@ -127,27 +145,26 @@ public class WebSocketAuthChannelInterceptor implements ChannelInterceptor {
     }
 
     @SuppressWarnings("unchecked")
-    private static Set<String> extractPermissions(StompHeaderAccessor accessor) {
-        Map<String, Object> sessionAttributes = accessor.getSessionAttributes();
-        if (sessionAttributes == null) {
-            return Set.of();
-        }
-        Object value = sessionAttributes.get("permissions");
-        if (value instanceof Set<?> set) {
-            return (Set<String>) set;
-        }
-        if (value instanceof List<?> list) {
-            return new HashSet<>((List<String>) list);
-        }
-        return Set.of();
-    }
-
-    private static UUID extractUserId(StompHeaderAccessor accessor) {
+    private static <T> T extractSessionAttribute(StompHeaderAccessor accessor, String key) {
         Map<String, Object> sessionAttributes = accessor.getSessionAttributes();
         if (sessionAttributes == null) {
             return null;
         }
-        Object value = sessionAttributes.get("userId");
+        Object value = sessionAttributes.get(key);
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof Set<?> set) {
+            return (T) set;
+        }
+        if (value instanceof List<?> list) {
+            return (T) new HashSet<>((List<String>) list);
+        }
+        return (T) value;
+    }
+
+    private static UUID extractUserId(StompHeaderAccessor accessor) {
+        Object value = extractSessionAttribute(accessor, "userId");
         if (value instanceof UUID uuid) {
             return uuid;
         }

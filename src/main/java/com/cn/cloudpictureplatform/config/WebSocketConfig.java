@@ -11,7 +11,6 @@ import com.cn.cloudpictureplatform.infrastructure.security.WebSocketAuthChannelI
 @Configuration
 @EnableWebSocketMessageBroker
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
-
     private final WebSocketAuthChannelInterceptor authChannelInterceptor;
 
     public WebSocketConfig(WebSocketAuthChannelInterceptor authChannelInterceptor) {

@@ -19,31 +19,35 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import com.cn.cloudpictureplatform.application.team.TeamService;
+import com.cn.cloudpictureplatform.application.team.TeamCommandService;
+import com.cn.cloudpictureplatform.application.team.TeamQueryService;
 import com.cn.cloudpictureplatform.common.web.ApiResponse;
 import com.cn.cloudpictureplatform.common.web.PageResponse;
 import com.cn.cloudpictureplatform.domain.team.TeamMemberStatus;
 import com.cn.cloudpictureplatform.domain.team.TeamMemberEventType;
 import com.cn.cloudpictureplatform.domain.team.TeamRole;
+import com.cn.cloudpictureplatform.common.util.CsvUtil;
 import com.cn.cloudpictureplatform.infrastructure.security.AppUserPrincipal;
-import com.cn.cloudpictureplatform.interfaces.team.dto.TeamCreateRequest;
-import com.cn.cloudpictureplatform.interfaces.team.dto.TeamInviteRequest;
-import com.cn.cloudpictureplatform.interfaces.team.dto.TeamInviteSummaryResponse;
-import com.cn.cloudpictureplatform.interfaces.team.dto.TeamMemberEventResponse;
-import com.cn.cloudpictureplatform.interfaces.team.dto.TeamMemberResponse;
-import com.cn.cloudpictureplatform.interfaces.team.dto.TeamResponse;
-import com.cn.cloudpictureplatform.interfaces.team.dto.TeamRoleUpdateRequest;
-import com.cn.cloudpictureplatform.interfaces.team.dto.TeamSummaryResponse;
-import com.cn.cloudpictureplatform.interfaces.team.dto.TeamUpdateRequest;
+import com.cn.cloudpictureplatform.application.team.dto.TeamCreateRequest;
+import com.cn.cloudpictureplatform.application.team.dto.TeamInviteRequest;
+import com.cn.cloudpictureplatform.application.team.dto.TeamInviteSummaryResponse;
+import com.cn.cloudpictureplatform.application.team.dto.TeamMemberEventResponse;
+import com.cn.cloudpictureplatform.application.team.dto.TeamMemberResponse;
+import com.cn.cloudpictureplatform.application.team.dto.TeamResponse;
+import com.cn.cloudpictureplatform.application.team.dto.TeamRoleUpdateRequest;
+import com.cn.cloudpictureplatform.application.team.dto.TeamSummaryResponse;
+import com.cn.cloudpictureplatform.application.team.dto.TeamUpdateRequest;
 
 @Validated
 @RestController
 @RequestMapping("/api/teams")
 public class TeamController {
-    private final TeamService teamService;
+    private final TeamQueryService teamQueryService;
+    private final TeamCommandService teamCommandService;
 
-    public TeamController(TeamService teamService) {
-        this.teamService = teamService;
+    public TeamController(TeamQueryService teamQueryService, TeamCommandService teamCommandService) {
+        this.teamQueryService = teamQueryService;
+        this.teamCommandService = teamCommandService;
     }
 
     @PostMapping
@@ -51,14 +55,14 @@ public class TeamController {
             @AuthenticationPrincipal AppUserPrincipal principal,
             @Valid @RequestBody TeamCreateRequest request
     ) {
-        return ApiResponse.ok(teamService.createTeam(principal.getId(), request));
+        return ApiResponse.ok(teamCommandService.createTeam(principal.getId(), request));
     }
 
     @GetMapping
     public ApiResponse<List<TeamSummaryResponse>> listMyTeams(
             @AuthenticationPrincipal AppUserPrincipal principal
     ) {
-        return ApiResponse.ok(teamService.listMyTeams(principal.getId()));
+        return ApiResponse.ok(teamQueryService.listMyTeams(principal.getId()));
     }
 
     @GetMapping("/{id}")
@@ -66,7 +70,7 @@ public class TeamController {
             @PathVariable("id") UUID teamId,
             @AuthenticationPrincipal AppUserPrincipal principal
     ) {
-        return ApiResponse.ok(teamService.getTeamDetail(teamId, principal.getId()));
+        return ApiResponse.ok(teamQueryService.getTeamDetail(teamId, principal.getId()));
     }
 
     @PatchMapping("/{id}")
@@ -75,14 +79,14 @@ public class TeamController {
             @AuthenticationPrincipal AppUserPrincipal principal,
             @Valid @RequestBody TeamUpdateRequest request
     ) {
-        return ApiResponse.ok(teamService.updateTeam(teamId, principal.getId(), request));
+        return ApiResponse.ok(teamCommandService.updateTeam(teamId, principal.getId(), request));
     }
 
     @GetMapping("/invites")
     public ApiResponse<List<TeamInviteSummaryResponse>> listMyInvites(
             @AuthenticationPrincipal AppUserPrincipal principal
     ) {
-        return ApiResponse.ok(teamService.listMyInvites(principal.getId()));
+        return ApiResponse.ok(teamQueryService.listMyInvites(principal.getId()));
     }
 
     @GetMapping("/{id}/members")
@@ -90,7 +94,7 @@ public class TeamController {
             @PathVariable("id") UUID teamId,
             @AuthenticationPrincipal AppUserPrincipal principal
     ) {
-        return ApiResponse.ok(teamService.listMembers(teamId, principal.getId()));
+        return ApiResponse.ok(teamQueryService.listMembers(teamId, principal.getId()));
     }
 
     @GetMapping("/{id}/invites")
@@ -98,7 +102,7 @@ public class TeamController {
             @PathVariable("id") UUID teamId,
             @AuthenticationPrincipal AppUserPrincipal principal
     ) {
-        return ApiResponse.ok(teamService.listTeamInvites(teamId, principal.getId()));
+        return ApiResponse.ok(teamQueryService.listTeamInvites(teamId, principal.getId()));
     }
 
     @GetMapping("/{id}/invites/history")
@@ -116,7 +120,7 @@ public class TeamController {
             @RequestParam(required = false) String sortBy,
             @RequestParam(required = false) String sortDir
     ) {
-        return ApiResponse.ok(teamService.listInviteHistory(
+        return ApiResponse.ok(teamQueryService.listInviteHistory(
                 teamId,
                 principal.getId(),
                 page,
@@ -146,7 +150,7 @@ public class TeamController {
             @RequestParam(required = false) String sortBy,
             @RequestParam(required = false) String sortDir
     ) {
-        return ApiResponse.ok(teamService.listMemberEvents(
+        return ApiResponse.ok(teamQueryService.listMemberEvents(
                 teamId,
                 principal.getId(),
                 page,
@@ -174,7 +178,7 @@ public class TeamController {
             @RequestParam(required = false) String sortDir,
             @RequestParam(defaultValue = "1000") int limit
     ) {
-        List<TeamMemberEventResponse> events = teamService.exportMemberEvents(
+        List<TeamMemberEventResponse> events = teamQueryService.exportMemberEvents(
                 teamId,
                 principal.getId(),
                 type,
@@ -206,7 +210,7 @@ public class TeamController {
             @RequestParam(required = false) String sortBy,
             @RequestParam(required = false) String sortDir
     ) {
-        return ApiResponse.ok(teamService.listInviteCancelEvents(
+        return ApiResponse.ok(teamQueryService.listInviteCancelEvents(
                 teamId,
                 principal.getId(),
                 page,
@@ -226,7 +230,7 @@ public class TeamController {
             @AuthenticationPrincipal AppUserPrincipal principal,
             @Valid @RequestBody TeamInviteRequest request
     ) {
-        return ApiResponse.ok(teamService.inviteMember(teamId, principal.getId(), request));
+        return ApiResponse.ok(teamCommandService.inviteMember(teamId, principal.getId(), request));
     }
 
     @PostMapping("/{id}/accept")
@@ -234,7 +238,7 @@ public class TeamController {
             @PathVariable("id") UUID teamId,
             @AuthenticationPrincipal AppUserPrincipal principal
     ) {
-        return ApiResponse.ok(teamService.acceptInvite(teamId, principal.getId()));
+        return ApiResponse.ok(teamCommandService.acceptInvite(teamId, principal.getId()));
     }
 
     @PostMapping("/{id}/reject")
@@ -242,7 +246,7 @@ public class TeamController {
             @PathVariable("id") UUID teamId,
             @AuthenticationPrincipal AppUserPrincipal principal
     ) {
-        teamService.rejectInvite(teamId, principal.getId());
+        teamCommandService.rejectInvite(teamId, principal.getId());
         return ApiResponse.ok(null);
     }
 
@@ -252,7 +256,7 @@ public class TeamController {
             @PathVariable("userId") UUID userId,
             @AuthenticationPrincipal AppUserPrincipal principal
     ) {
-        return ApiResponse.ok(teamService.cancelInvite(teamId, principal.getId(), userId));
+        return ApiResponse.ok(teamCommandService.cancelInvite(teamId, principal.getId(), userId));
     }
 
     @PatchMapping("/{id}/members/{userId}/role")
@@ -262,7 +266,7 @@ public class TeamController {
             @AuthenticationPrincipal AppUserPrincipal principal,
             @Valid @RequestBody TeamRoleUpdateRequest request
     ) {
-        return ApiResponse.ok(teamService.updateRole(teamId, principal.getId(), userId, request));
+        return ApiResponse.ok(teamCommandService.updateRole(teamId, principal.getId(), userId, request));
     }
 
     @DeleteMapping("/{id}/members/{userId}")
@@ -271,7 +275,7 @@ public class TeamController {
             @PathVariable("userId") UUID userId,
             @AuthenticationPrincipal AppUserPrincipal principal
     ) {
-        teamService.removeMember(teamId, principal.getId(), userId);
+        teamCommandService.removeMember(teamId, principal.getId(), userId);
         return ApiResponse.ok(null);
     }
 
@@ -279,44 +283,32 @@ public class TeamController {
         StringBuilder builder = new StringBuilder();
         builder.append("id,teamId,type,role,userId,username,displayName,actorId,actorUsername,actorDisplayName,detail,createdAt\n");
         for (TeamMemberEventResponse event : events) {
-            builder.append(escapeCsv(event.getId()))
+            builder.append(CsvUtil.escapeCsv(event.getId()))
                     .append(',')
-                    .append(escapeCsv(event.getTeamId()))
+                    .append(CsvUtil.escapeCsv(event.getTeamId()))
                     .append(',')
-                    .append(escapeCsv(event.getType()))
+                    .append(CsvUtil.escapeCsv(event.getType()))
                     .append(',')
-                    .append(escapeCsv(event.getRole()))
+                    .append(CsvUtil.escapeCsv(event.getRole()))
                     .append(',')
-                    .append(escapeCsv(event.getUserId()))
+                    .append(CsvUtil.escapeCsv(event.getUserId()))
                     .append(',')
-                    .append(escapeCsv(event.getUsername()))
+                    .append(CsvUtil.escapeCsv(event.getUsername()))
                     .append(',')
-                    .append(escapeCsv(event.getDisplayName()))
+                    .append(CsvUtil.escapeCsv(event.getDisplayName()))
                     .append(',')
-                    .append(escapeCsv(event.getActorId()))
+                    .append(CsvUtil.escapeCsv(event.getActorId()))
                     .append(',')
-                    .append(escapeCsv(event.getActorUsername()))
+                    .append(CsvUtil.escapeCsv(event.getActorUsername()))
                     .append(',')
-                    .append(escapeCsv(event.getActorDisplayName()))
+                    .append(CsvUtil.escapeCsv(event.getActorDisplayName()))
                     .append(',')
-                    .append(escapeCsv(event.getDetail()))
+                    .append(CsvUtil.escapeCsv(event.getDetail()))
                     .append(',')
-                    .append(escapeCsv(event.getCreatedAt()))
+                    .append(CsvUtil.escapeCsv(event.getCreatedAt()))
                     .append('\n');
         }
         return builder.toString();
     }
 
-    private String escapeCsv(Object value) {
-        if (value == null) {
-            return "";
-        }
-        String text = String.valueOf(value);
-        boolean needsEscaping = text.contains(",") || text.contains("\"") || text.contains("\n") || text.contains("\r");
-        if (needsEscaping) {
-            text = text.replace("\"", "\"\"");
-            return "\"" + text + "\"";
-        }
-        return text;
-    }
 }

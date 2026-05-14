@@ -1,5 +1,6 @@
 package com.cn.cloudpictureplatform.websocket;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.LinkedHashSet;
 import java.util.Map;
@@ -7,16 +8,19 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 import com.cn.cloudpictureplatform.websocket.dto.PresenceSnapshot;
 
 /**
- * In-memory edit-lock manager.
+ * In-memory edit-lock manager (dev/test profile).
  * A lock is granted to the first user who requests it and expires after {@link #LOCK_TTL_SECONDS}.
  * Expired locks are reclaimed by a scheduled cleanup task.
+ * For production multi-instance deployments, use {@link RedisEditLockAdapter}.
  */
 @Service
-public class EditLockService {
+@Profile({"dev", "test"})
+public class EditLockService implements EditLockPort {
     static final long LOCK_TTL_SECONDS = 300; // 5 minutes
 
     private final Map<UUID, LockEntry> locks = new ConcurrentHashMap<>();
@@ -25,9 +29,11 @@ public class EditLockService {
      * Try to acquire the lock on a picture.
      * @return true if the lock was granted (or already held by this user), false if held by someone else.
      */
-    public boolean tryLock(UUID pictureId, UUID userId, String username, String sessionId) {
+    @Override
+    public boolean tryLock(UUID pictureId, UUID userId, String username, String sessionId, Duration ttl) {
         Instant now = Instant.now();
         LockEntry existing = locks.get(pictureId);
+        long ttlSeconds = ttl != null ? ttl.toSeconds() : LOCK_TTL_SECONDS;
 
         if (existing != null && !existing.isExpired(now)) {
             if (existing.userId().equals(userId)) {
@@ -38,14 +44,11 @@ public class EditLockService {
         }
 
         locks.put(pictureId, new LockEntry(pictureId, userId, username, sessionId, now,
-                now.plusSeconds(LOCK_TTL_SECONDS)));
+                now.plusSeconds(ttlSeconds)));
         return true;
     }
 
-    /**
-     * Release the lock if it is held by the given user.
-     * @return true if the lock was released, false if it was held by someone else.
-     */
+    @Override
     public boolean releaseLock(UUID pictureId, UUID userId) {
         LockEntry existing = locks.get(pictureId);
         if (existing == null || !existing.userId().equals(userId)) {

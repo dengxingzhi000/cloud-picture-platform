@@ -2,6 +2,8 @@ package com.cn.cloudpictureplatform.interfaces.picture.dto;
 
 import java.util.UUID;
 import lombok.Builder;
+import com.cn.cloudpictureplatform.application.shared.dto.PictureCollaborationRoomResponse;
+import com.cn.cloudpictureplatform.application.shared.dto.PictureEditorDocumentResponse;
 import com.cn.cloudpictureplatform.websocket.dto.PresenceSnapshot;
 
 @Builder

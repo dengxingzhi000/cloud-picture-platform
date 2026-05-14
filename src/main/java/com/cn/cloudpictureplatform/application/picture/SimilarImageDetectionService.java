@@ -21,7 +21,6 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class SimilarImageDetectionService {
-
     private final FileDeduplicationService fileDeduplicationService;
     private final PerceptualHashService perceptualHashService;
     private final PictureAssetRepository pictureAssetRepository;

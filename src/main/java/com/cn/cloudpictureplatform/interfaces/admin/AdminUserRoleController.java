@@ -15,7 +15,7 @@ import com.cn.cloudpictureplatform.application.rbac.UserRoleService;
 import com.cn.cloudpictureplatform.common.web.ApiResponse;
 import com.cn.cloudpictureplatform.interfaces.admin.dto.rbac.UserRoleAssignRequest;
 import com.cn.cloudpictureplatform.interfaces.admin.dto.rbac.UserRoleBulkUpdateRequest;
-import com.cn.cloudpictureplatform.interfaces.admin.dto.rbac.UserRoleResponse;
+import com.cn.cloudpictureplatform.application.shared.dto.UserRoleResponse;
 import lombok.RequiredArgsConstructor;
 
 @RestController

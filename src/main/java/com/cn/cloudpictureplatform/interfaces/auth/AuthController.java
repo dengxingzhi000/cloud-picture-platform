@@ -9,27 +9,21 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import com.cn.cloudpictureplatform.application.auth.AuthService;
-import com.cn.cloudpictureplatform.common.exception.ApiException;
-import com.cn.cloudpictureplatform.common.web.ApiErrorCode;
 import com.cn.cloudpictureplatform.common.web.ApiResponse;
-import com.cn.cloudpictureplatform.domain.user.AppUser;
 import com.cn.cloudpictureplatform.infrastructure.security.AppUserPrincipal;
-import com.cn.cloudpictureplatform.infrastructure.persistence.AppUserRepository;
-import com.cn.cloudpictureplatform.interfaces.auth.dto.AuthResponse;
-import com.cn.cloudpictureplatform.interfaces.auth.dto.LoginRequest;
-import com.cn.cloudpictureplatform.interfaces.auth.dto.RegisterRequest;
-import com.cn.cloudpictureplatform.interfaces.auth.dto.UserInfoResponse;
-import com.cn.cloudpictureplatform.interfaces.auth.dto.UserProfileUpdateRequest;
+import com.cn.cloudpictureplatform.application.shared.dto.AuthResponse;
+import com.cn.cloudpictureplatform.application.shared.dto.UserInfoResponse;
+import com.cn.cloudpictureplatform.application.auth.dto.LoginRequest;
+import com.cn.cloudpictureplatform.application.auth.dto.RegisterRequest;
+import com.cn.cloudpictureplatform.application.auth.dto.UserProfileUpdateRequest;
 
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {
     private final AuthService authService;
-    private final AppUserRepository appUserRepository;
 
-    public AuthController(AuthService authService, AppUserRepository appUserRepository) {
+    public AuthController(AuthService authService) {
         this.authService = authService;
-        this.appUserRepository = appUserRepository;
     }
 
     @PostMapping("/register")
@@ -44,18 +38,7 @@ public class AuthController {
 
     @GetMapping("/me")
     public ApiResponse<UserInfoResponse> me(@AuthenticationPrincipal AppUserPrincipal principal) {
-        AppUser user = appUserRepository.findById(principal.getId())
-                .orElseThrow(() -> new ApiException(ApiErrorCode.NOT_FOUND, "user not found"));
-        UserInfoResponse response = UserInfoResponse.builder()
-                .userId(user.getId())
-                .username(user.getUsername())
-                .displayName(user.getDisplayName())
-                .email(user.getEmail())
-                .avatarUrl(user.getAvatarUrl())
-                .roles(principal.getRoles())
-                .permissions(principal.getPermissions())
-                .build();
-        return ApiResponse.ok(response);
+        return ApiResponse.ok(authService.getUserInfo(principal.getId(), principal));
     }
 
     @PatchMapping("/me")
@@ -63,16 +46,6 @@ public class AuthController {
             @AuthenticationPrincipal AppUserPrincipal principal,
             @Valid @RequestBody UserProfileUpdateRequest request
     ) {
-        AppUser user = authService.updateProfile(principal.getId(), request);
-        UserInfoResponse response = UserInfoResponse.builder()
-                .userId(user.getId())
-                .username(user.getUsername())
-                .displayName(user.getDisplayName())
-                .email(user.getEmail())
-                .avatarUrl(user.getAvatarUrl())
-                .roles(principal.getRoles())
-                .permissions(principal.getPermissions())
-                .build();
-        return ApiResponse.ok(response);
+        return ApiResponse.ok(authService.updateProfileAndGetInfo(principal.getId(), request, principal));
     }
 }

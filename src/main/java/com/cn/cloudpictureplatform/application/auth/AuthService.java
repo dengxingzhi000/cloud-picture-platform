@@ -27,10 +27,11 @@ import com.cn.cloudpictureplatform.infrastructure.persistence.SpaceRepository;
 import com.cn.cloudpictureplatform.infrastructure.persistence.UserRoleRepository;
 import com.cn.cloudpictureplatform.infrastructure.security.AppUserPrincipal;
 import com.cn.cloudpictureplatform.infrastructure.security.JwtTokenService;
-import com.cn.cloudpictureplatform.interfaces.auth.dto.AuthResponse;
-import com.cn.cloudpictureplatform.interfaces.auth.dto.LoginRequest;
-import com.cn.cloudpictureplatform.interfaces.auth.dto.RegisterRequest;
-import com.cn.cloudpictureplatform.interfaces.auth.dto.UserProfileUpdateRequest;
+import com.cn.cloudpictureplatform.application.shared.dto.AuthResponse;
+import com.cn.cloudpictureplatform.application.shared.dto.UserInfoResponse;
+import com.cn.cloudpictureplatform.application.auth.dto.LoginRequest;
+import com.cn.cloudpictureplatform.application.auth.dto.RegisterRequest;
+import com.cn.cloudpictureplatform.application.auth.dto.UserProfileUpdateRequest;
 
 @Service
 public class AuthService {
@@ -67,6 +68,20 @@ public class AuthService {
 
     @Transactional
     public AuthResponse register(RegisterRequest request) {
+        String password = request.getPassword();
+        if (password == null || password.length() < 8) {
+            throw new ApiException(ApiErrorCode.BAD_REQUEST, "password must be at least 8 characters");
+        }
+        if (!password.matches(".*[A-Z].*")) {
+            throw new ApiException(ApiErrorCode.BAD_REQUEST, "password must contain at least one uppercase letter");
+        }
+        if (!password.matches(".*[a-z].*")) {
+            throw new ApiException(ApiErrorCode.BAD_REQUEST, "password must contain at least one lowercase letter");
+        }
+        if (!password.matches(".*\\d.*")) {
+            throw new ApiException(ApiErrorCode.BAD_REQUEST, "password must contain at least one digit");
+        }
+
         if (appUserRepository.findByUsername(request.getUsername()).isPresent()) {
             throw new ApiException(ApiErrorCode.BAD_REQUEST, "username already exists");
         }
@@ -152,12 +167,7 @@ public class AuthService {
     public AppUserPrincipal buildPrincipal(AppUser user) {
         List<UUID> roleIds = userRoleRepository.findRoleIdsByUserId(user.getId());
 
-        Set<String> roles = roleIds.stream()
-                .map(roleRepository::findById)
-                .filter(Optional::isPresent)
-                .map(Optional::get)
-                .map(Role::getName)
-                .collect(Collectors.toSet());
+        Set<String> roles = resolveRoleNames(roleIds);
 
         Set<String> permissions = Set.copyOf(
                 rolePermissionRepository.findPermissionNamesByRoleIds(roleIds)
@@ -171,5 +181,40 @@ public class AuthService {
                 roles,
                 permissions
         );
+    }
+
+    public UserInfoResponse getUserInfo(UUID userId, AppUserPrincipal principal) {
+        AppUser user = appUserRepository.findById(userId)
+                .orElseThrow(() -> new ApiException(ApiErrorCode.NOT_FOUND, "user not found"));
+        return buildUserInfoResponse(user, principal);
+    }
+
+    public UserInfoResponse updateProfileAndGetInfo(UUID userId, UserProfileUpdateRequest request, AppUserPrincipal principal) {
+        AppUser user = updateProfile(userId, request);
+        return buildUserInfoResponse(user, principal);
+    }
+
+    private static UserInfoResponse buildUserInfoResponse(AppUser user, AppUserPrincipal principal) {
+        return UserInfoResponse.builder()
+                .userId(user.getId())
+                .username(user.getUsername())
+                .displayName(user.getDisplayName())
+                .email(user.getEmail())
+                .avatarUrl(user.getAvatarUrl())
+                .roles(principal.getRoles())
+                .permissions(principal.getPermissions())
+                .build();
+    }
+
+    /**
+     * Batch-load roles by IDs to avoid N+1 queries.
+     */
+    private Set<String> resolveRoleNames(List<UUID> roleIds) {
+        if (roleIds == null || roleIds.isEmpty()) {
+            return Set.of();
+        }
+        return roleRepository.findAllById(roleIds).stream()
+                .map(Role::getName)
+                .collect(Collectors.toSet());
     }
 }

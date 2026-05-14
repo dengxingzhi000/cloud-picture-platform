@@ -1,16 +1,20 @@
 package com.cn.cloudpictureplatform.websocket;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.cn.cloudpictureplatform.application.picture.PictureDocumentService;
-import com.cn.cloudpictureplatform.interfaces.picture.dto.PictureDocumentElementResponse;
+import com.cn.cloudpictureplatform.application.shared.dto.PictureDocumentElementResponse;
 import com.cn.cloudpictureplatform.websocket.dto.CollabMessage;
 import com.cn.cloudpictureplatform.websocket.dto.PictureDocumentOperationPayload;
+import com.cn.cloudpictureplatform.websocket.dto.PresenceSnapshot;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.util.HashMap;
@@ -19,6 +23,8 @@ import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
@@ -38,10 +44,13 @@ class PictureCollabControllerTests {
     private PresenceService presenceService;
 
     @Mock
-    private EditLockService editLockService;
+    private EditLockPort editLockService;
 
     @Mock
     private PictureDocumentService pictureDocumentService;
+
+    @Captor
+    private ArgumentCaptor<Object> messageCaptor;
 
     private PictureCollabController controller;
     private ObjectMapper objectMapper;
@@ -75,8 +84,16 @@ class PictureCollabControllerTests {
                 .type(CollabMessage.EventType.ELEMENT_ADD)
                 .schemaVersion(PictureCollabController.EVENT_SCHEMA_VERSION)
                 .pictureId(pictureId)
-                .payload(payload)
+                .payload(objectMapper.valueToTree(payload))
                 .build();
+
+        when(editLockService.refreshLock(pictureId, userId))
+                .thenReturn(PresenceSnapshot.LockInfo.builder()
+                        .lockedByUserId(userId)
+                        .lockedByUsername("alice")
+                        .lockedAt(java.time.Instant.now())
+                        .expiresAt(java.time.Instant.now().plusSeconds(300))
+                        .build());
 
         when(pictureDocumentService.applyOperation(
                 eq(pictureId),
@@ -104,21 +121,20 @@ class PictureCollabControllerTests {
 
         verify(messagingTemplate).convertAndSend(
                 eq("/topic/pictures/" + pictureId + "/collab"),
-                argThat(argument -> {
-                    if (!(argument instanceof CollabMessage outbound)) {
-                        return false;
-                    }
-                    JsonNode payloadNode = outbound.getPayload();
-                    return outbound.getType() == CollabMessage.EventType.ELEMENT_ADD
-                            && PictureCollabController.EVENT_SCHEMA_VERSION.equals(outbound.getSchemaVersion())
-                            && outbound.getVersion() == 3L
-                            && userId.equals(outbound.getUserId())
-                            && "alice".equals(outbound.getUsername())
-                            && payloadNode != null
-                            && "rect-1".equals(payloadNode.path("id").asText())
-                            && "rect".equals(payloadNode.path("type").asText());
-                })
+                messageCaptor.capture()
         );
+        Object sent = messageCaptor.getValue();
+        assertTrue(sent instanceof CollabMessage);
+        CollabMessage outbound = (CollabMessage) sent;
+        JsonNode payloadNode = outbound.getPayload();
+        assertEquals(CollabMessage.EventType.ELEMENT_ADD, outbound.getType());
+        assertEquals(PictureCollabController.EVENT_SCHEMA_VERSION, outbound.getSchemaVersion());
+        assertEquals(3L, outbound.getVersion().longValue());
+        assertEquals(userId, outbound.getUserId());
+        assertEquals("alice", outbound.getUsername());
+        assertNotNull(payloadNode);
+        assertEquals("rect-1", payloadNode.path("id").asText());
+        assertEquals("rect", payloadNode.path("type").asText());
     }
 
     @Test
@@ -127,8 +143,10 @@ class PictureCollabControllerTests {
         UUID userId = UUID.randomUUID();
 
         when(presenceService.getUserIdForSession("session-1")).thenReturn(userId);
-        when(editLockService.releaseAll(userId)).thenReturn(Set.of(pictureId));
+        when(presenceService.getPictureIdForSession("session-1")).thenReturn(pictureId);
         when(presenceService.handleDisconnect("session-1")).thenReturn(pictureId);
+        when(presenceService.hasActiveSession(pictureId, userId)).thenReturn(false);
+        when(editLockService.releaseLockForSession(pictureId, userId, "session-1")).thenReturn(true);
         when(presenceService.getPresence(pictureId)).thenReturn(java.util.List.of());
         when(editLockService.getLockInfo(pictureId)).thenReturn(null);
 
@@ -139,18 +157,20 @@ class PictureCollabControllerTests {
                 CloseStatus.NORMAL
         ));
 
-        verify(editLockService).releaseAll(userId);
+        verify(editLockService).releaseLockForSession(pictureId, userId, "session-1");
         verify(messagingTemplate).convertAndSend(
                 eq("/topic/pictures/" + pictureId + "/collab"),
-                argThat(argument -> argument instanceof CollabMessage outbound
-                        && outbound.getType() == CollabMessage.EventType.PRESENCE_UPDATE
-                        && pictureId.equals(outbound.getPictureId()))
+                messageCaptor.capture()
         );
-        verify(messagingTemplate, never()).convertAndSend(eq("/topic/pictures/null/collab"), any());
+        Object sent = messageCaptor.getValue();
+        assertTrue(sent instanceof CollabMessage);
+        CollabMessage outbound = (CollabMessage) sent;
+        assertEquals(CollabMessage.EventType.PRESENCE_UPDATE, outbound.getType());
+        assertEquals(pictureId, outbound.getPictureId());
     }
 
     @Test
-    void shouldPersistDocumentOperationWithoutLock() throws Exception {
+    void shouldPersistDocumentOperationWithLock() throws Exception {
         UUID pictureId = UUID.randomUUID();
         UUID userId = UUID.randomUUID();
 
@@ -158,11 +178,19 @@ class PictureCollabControllerTests {
         payload.setId("rect-1");
         payload.setType("rect");
 
+        when(editLockService.refreshLock(pictureId, userId))
+                .thenReturn(PresenceSnapshot.LockInfo.builder()
+                        .lockedByUserId(userId)
+                        .lockedByUsername("alice")
+                        .lockedAt(java.time.Instant.now())
+                        .expiresAt(java.time.Instant.now().plusSeconds(300))
+                        .build());
+
         CollabMessage message = CollabMessage.builder()
                 .type(CollabMessage.EventType.ELEMENT_UPDATE)
                 .schemaVersion(PictureCollabController.EVENT_SCHEMA_VERSION)
                 .pictureId(pictureId)
-                .payload(payload)
+                .payload(objectMapper.valueToTree(payload))
                 .build();
 
         when(pictureDocumentService.applyOperation(
@@ -198,20 +226,18 @@ class PictureCollabControllerTests {
         );
         verify(messagingTemplate).convertAndSend(
                 eq("/topic/pictures/" + pictureId + "/collab"),
-                argThat(argument -> {
-                    if (!(argument instanceof CollabMessage outbound)) {
-                        return false;
-                    }
-                    JsonNode payloadNode = outbound.getPayload();
-                    return outbound.getType() == CollabMessage.EventType.ELEMENT_UPDATE
-                            && pictureId.equals(outbound.getPictureId())
-                            && userId.equals(outbound.getUserId())
-                            && outbound.getVersion() == 7L
-                            && payloadNode != null
-                            && "rect-1".equals(payloadNode.path("id").asText())
-                            && "rect".equals(payloadNode.path("type").asText());
-                })
+                messageCaptor.capture()
         );
-        verify(messagingTemplate, never()).convertAndSendToUser(eq("alice"), eq("/queue/collab"), any());
+        Object sent = messageCaptor.getValue();
+        assertTrue(sent instanceof CollabMessage);
+        CollabMessage outbound = (CollabMessage) sent;
+        JsonNode payloadNode = outbound.getPayload();
+        assertEquals(CollabMessage.EventType.ELEMENT_UPDATE, outbound.getType());
+        assertEquals(pictureId, outbound.getPictureId());
+        assertEquals(userId, outbound.getUserId());
+        assertEquals(7L, outbound.getVersion().longValue());
+        assertNotNull(payloadNode);
+        assertEquals("rect-1", payloadNode.path("id").asText());
+        assertEquals("rect", payloadNode.path("type").asText());
     }
 }

@@ -14,7 +14,7 @@ import com.cn.cloudpictureplatform.domain.user.AppUser;
 import com.cn.cloudpictureplatform.infrastructure.persistence.RoleRepository;
 import com.cn.cloudpictureplatform.infrastructure.persistence.UserRoleRepository;
 import com.cn.cloudpictureplatform.infrastructure.persistence.AppUserRepository;
-import com.cn.cloudpictureplatform.interfaces.admin.dto.rbac.UserRoleResponse;
+import com.cn.cloudpictureplatform.application.shared.dto.UserRoleResponse;
 import lombok.RequiredArgsConstructor;
 
 @Service

@@ -16,11 +16,12 @@ import com.cn.cloudpictureplatform.domain.team.TeamMember;
 import com.cn.cloudpictureplatform.domain.team.TeamMemberStatus;
 import com.cn.cloudpictureplatform.domain.user.AppUser;
 import com.cn.cloudpictureplatform.application.search.SearchIndexService;
+import com.cn.cloudpictureplatform.application.space.SpacePermissionValidator;
 import com.cn.cloudpictureplatform.infrastructure.persistence.AppUserRepository;
 import com.cn.cloudpictureplatform.infrastructure.persistence.PictureAssetRepository;
 import com.cn.cloudpictureplatform.infrastructure.persistence.SpaceRepository;
 import com.cn.cloudpictureplatform.infrastructure.persistence.TeamMemberRepository;
-import com.cn.cloudpictureplatform.interfaces.picture.dto.PictureResponse;
+import com.cn.cloudpictureplatform.application.shared.dto.PictureResponse;
 import com.cn.cloudpictureplatform.websocket.NotificationPublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -53,6 +54,7 @@ public class DeduplicationPictureUploadService {
     private final PictureAssetRepository pictureAssetRepository;
     private final SpaceRepository spaceRepository;
     private final TeamMemberRepository teamMemberRepository;
+    private final SpacePermissionValidator spacePermissionValidator;
     private final AppUserRepository appUserRepository;
     private final PictureResponseConverter responseConverter;
     private final SearchIndexService searchIndexService;
@@ -177,22 +179,7 @@ public class DeduplicationPictureUploadService {
     // ============== 私有辅助方法 ==============
 
     private Space resolveSpace(UUID ownerId, UUID spaceId) {
-        if (spaceId == null) {
-            return spaceRepository.findFirstByOwnerIdAndType(ownerId, SpaceType.PERSONAL)
-                    .orElseThrow(() -> new ApiException(ApiErrorCode.NOT_FOUND, "space not found"));
-        } else {
-            Space space = spaceRepository.findById(spaceId)
-                    .orElseThrow(() -> new ApiException(ApiErrorCode.NOT_FOUND, "space not found"));
-            if (space.getType() != SpaceType.TEAM) {
-                throw new ApiException(ApiErrorCode.BAD_REQUEST, "invalid target space");
-            }
-            TeamMember member = teamMemberRepository.findByTeamIdAndUserId(space.getTeamId(), ownerId)
-                    .orElseThrow(() -> new ApiException(ApiErrorCode.FORBIDDEN, "not a member of this team"));
-            if (member.getStatus() != TeamMemberStatus.ACTIVE) {
-                throw new ApiException(ApiErrorCode.FORBIDDEN, "not an active team member");
-            }
-            return space;
-        }
+        return spacePermissionValidator.resolveAndValidateSpace(ownerId, spaceId);
     }
 
     private ImageHashResult computeHashes(MultipartFile file) {

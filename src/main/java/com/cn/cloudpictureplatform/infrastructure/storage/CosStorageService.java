@@ -2,6 +2,7 @@ package com.cn.cloudpictureplatform.infrastructure.storage;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Paths;
 import jakarta.annotation.PreDestroy;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
@@ -46,7 +47,8 @@ public class CosStorageService implements StorageService {
 
     @Override
     public StorageResult store(MultipartFile file, String key) {
-        String objectKey = prefix + key;
+        String safeKey = sanitizeKey(key);
+        String objectKey = prefix + safeKey;
         ObjectMetadata metadata = new ObjectMetadata();
         metadata.setContentLength(file.getSize());
         if (StringUtils.hasText(file.getContentType())) {
@@ -66,13 +68,25 @@ public class CosStorageService implements StorageService {
 
     @Override
     public boolean delete(String key) {
-        String objectKey = key.startsWith(prefix) ? key : prefix + key;
+        String safeKey = sanitizeKey(key);
+        String objectKey = safeKey.startsWith(prefix) ? safeKey : prefix + safeKey;
         try {
             cosClient.deleteObject(bucket, objectKey);
             return true;
         } catch (Exception ex) {
             return false;
         }
+    }
+
+    private static String sanitizeKey(String key) {
+        if (!StringUtils.hasText(key)) {
+            throw new ApiException(ApiErrorCode.BAD_REQUEST, "storage key must not be empty");
+        }
+        String normalized = Paths.get(key).normalize().toString().replace("\\", "/");
+        if (normalized.startsWith("..") || normalized.contains("../")) {
+            throw new ApiException(ApiErrorCode.BAD_REQUEST, "invalid storage key: " + key);
+        }
+        return normalized;
     }
 
     @PreDestroy

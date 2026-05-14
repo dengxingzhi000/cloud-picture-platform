@@ -3,38 +3,35 @@ package com.cn.cloudpictureplatform.application.picture;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.io.InputStream;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.UUID;
 
 import javax.imageio.ImageIO;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.DigestUtils;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 import com.cn.cloudpictureplatform.common.exception.ApiException;
 import com.cn.cloudpictureplatform.common.web.ApiErrorCode;
+import com.cn.cloudpictureplatform.application.shared.dto.PictureResponse;
+import com.cn.cloudpictureplatform.application.space.SpacePermissionValidator;
 import com.cn.cloudpictureplatform.domain.picture.PictureAsset;
 import com.cn.cloudpictureplatform.domain.picture.ReviewStatus;
 import com.cn.cloudpictureplatform.domain.picture.Visibility;
 import com.cn.cloudpictureplatform.domain.space.Space;
-import com.cn.cloudpictureplatform.domain.space.SpaceType;
-import com.cn.cloudpictureplatform.domain.team.TeamMember;
-import com.cn.cloudpictureplatform.domain.team.TeamMemberStatus;
 import com.cn.cloudpictureplatform.domain.storage.StorageResult;
 import com.cn.cloudpictureplatform.domain.storage.StorageService;
 import com.cn.cloudpictureplatform.infrastructure.persistence.PictureAssetRepository;
 import com.cn.cloudpictureplatform.infrastructure.persistence.SpaceRepository;
-import com.cn.cloudpictureplatform.infrastructure.persistence.TeamMemberRepository;
-import com.cn.cloudpictureplatform.interfaces.picture.dto.PictureResponse;
 
 @Service
 public class PictureUploadService {
-
     private final StorageService storageService;
     private final PictureAssetRepository pictureAssetRepository;
     private final SpaceRepository spaceRepository;
-    private final TeamMemberRepository teamMemberRepository;
+    private final SpacePermissionValidator spacePermissionValidator;
     private final com.cn.cloudpictureplatform.application.search.SearchIndexService searchIndexService;
     private final org.springframework.context.ApplicationEventPublisher eventPublisher;
 
@@ -42,14 +39,14 @@ public class PictureUploadService {
             StorageService storageService,
             PictureAssetRepository pictureAssetRepository,
             SpaceRepository spaceRepository,
-            TeamMemberRepository teamMemberRepository,
+            SpacePermissionValidator spacePermissionValidator,
             com.cn.cloudpictureplatform.application.search.SearchIndexService searchIndexService,
             org.springframework.context.ApplicationEventPublisher eventPublisher
     ) {
         this.storageService = storageService;
         this.pictureAssetRepository = pictureAssetRepository;
         this.spaceRepository = spaceRepository;
-        this.teamMemberRepository = teamMemberRepository;
+        this.spacePermissionValidator = spacePermissionValidator;
         this.searchIndexService = searchIndexService;
         this.eventPublisher = eventPublisher;
     }
@@ -59,22 +56,7 @@ public class PictureUploadService {
         if (file == null || file.isEmpty()) {
             throw new ApiException(ApiErrorCode.BAD_REQUEST, "file is empty");
         }
-        Space space;
-        if (spaceId == null) {
-            space = spaceRepository.findFirstByOwnerIdAndType(ownerId, SpaceType.PERSONAL)
-                    .orElseThrow(() -> new ApiException(ApiErrorCode.NOT_FOUND, "space not found"));
-        } else {
-            space = spaceRepository.findById(spaceId)
-                    .orElseThrow(() -> new ApiException(ApiErrorCode.NOT_FOUND, "space not found"));
-            if (space.getType() != SpaceType.TEAM) {
-                throw new ApiException(ApiErrorCode.BAD_REQUEST, "invalid target space");
-            }
-            TeamMember member = teamMemberRepository.findByTeamIdAndUserId(space.getTeamId(), ownerId)
-                    .orElseThrow(() -> new ApiException(ApiErrorCode.FORBIDDEN, "not a member of this team"));
-            if (member.getStatus() != TeamMemberStatus.ACTIVE) {
-                throw new ApiException(ApiErrorCode.FORBIDDEN, "not an active team member");
-            }
-        }
+        Space space = spacePermissionValidator.resolveAndValidateSpace(ownerId, spaceId);
 
         String originalFilename = StringUtils.hasText(file.getOriginalFilename())
                 ? file.getOriginalFilename()
@@ -139,8 +121,19 @@ public class PictureUploadService {
 
     private String computeChecksum(MultipartFile file) {
         try (InputStream inputStream = file.getInputStream()) {
-            return DigestUtils.md5DigestAsHex(inputStream);
-        } catch (IOException ex) {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] buffer = new byte[8192];
+            int bytesRead;
+            while ((bytesRead = inputStream.read(buffer)) != -1) {
+                digest.update(buffer, 0, bytesRead);
+            }
+            byte[] hashBytes = digest.digest();
+            StringBuilder hexString = new StringBuilder();
+            for (byte b : hashBytes) {
+                hexString.append(String.format("%02x", b));
+            }
+            return hexString.toString();
+        } catch (IOException | NoSuchAlgorithmException ex) {
             throw new ApiException(ApiErrorCode.SERVER_ERROR, "failed to read file");
         }
     }

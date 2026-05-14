@@ -9,7 +9,6 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
 @Configuration
 public class SearchIndexConfig {
-
     private static final Logger log = LoggerFactory.getLogger(SearchIndexConfig.class);
 
     @Bean(name = "searchIndexTaskExecutor")

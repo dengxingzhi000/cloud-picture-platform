@@ -26,18 +26,20 @@ public class PresenceService {
     private final Map<String, SessionEntry> sessionIndex = new ConcurrentHashMap<>();
 
     public void join(UUID pictureId, String sessionId, UUID userId, String username) {
-        SessionEntry previous = sessionIndex.get(sessionId);
-        if (previous != null && !previous.pictureId().equals(pictureId)) {
-            leave(previous.pictureId(), sessionId);
-        }
         SessionEntry entry = new SessionEntry(sessionId, pictureId, userId, username, Instant.now());
-        picturePresence
-                .computeIfAbsent(pictureId, k -> new CopyOnWriteArraySet<>())
-                .add(entry);
-        sessionIndex.put(sessionId, entry);
+        synchronized (sessionIndex) {
+            SessionEntry previous = sessionIndex.get(sessionId);
+            if (previous != null && !previous.pictureId().equals(pictureId)) {
+                removeFromPicturePresence(previous.pictureId(), sessionId);
+            }
+            picturePresence
+                    .computeIfAbsent(pictureId, k -> new CopyOnWriteArraySet<>())
+                    .add(entry);
+            sessionIndex.put(sessionId, entry);
+        }
     }
 
-    public void leave(UUID pictureId, String sessionId) {
+    private void removeFromPicturePresence(UUID pictureId, String sessionId) {
         Set<SessionEntry> entries = picturePresence.get(pictureId);
         if (entries != null) {
             entries.removeIf(e -> e.sessionId().equals(sessionId));
@@ -45,7 +47,13 @@ public class PresenceService {
                 picturePresence.remove(pictureId);
             }
         }
-        sessionIndex.remove(sessionId);
+    }
+
+    public void leave(UUID pictureId, String sessionId) {
+        synchronized (sessionIndex) {
+            removeFromPicturePresence(pictureId, sessionId);
+            sessionIndex.remove(sessionId);
+        }
     }
 
     /**
@@ -53,12 +61,14 @@ public class PresenceService {
      * @return pictureId that was left, or null if session was not tracked
      */
     public UUID handleDisconnect(String sessionId) {
-        SessionEntry entry = sessionIndex.remove(sessionId);
-        if (entry == null) {
-            return null;
+        synchronized (sessionIndex) {
+            SessionEntry entry = sessionIndex.remove(sessionId);
+            if (entry == null) {
+                return null;
+            }
+            removeFromPicturePresence(entry.pictureId(), sessionId);
+            return entry.pictureId();
         }
-        leave(entry.pictureId(), sessionId);
-        return entry.pictureId();
     }
 
     public List<PresenceSnapshot.UserPresence> getPresence(UUID pictureId) {

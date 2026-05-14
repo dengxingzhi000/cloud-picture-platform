@@ -3,6 +3,8 @@
 # Or set SPRING_PROFILES_ACTIVE=dev environment variable
 
 spring:
+  autoconfigure:
+    exclude: org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
   datasource:
     url: jdbc:h2:mem:cloud_picture;MODE=PostgreSQL;DB_CLOSE_DELAY=-1
     username: sa
@@ -12,6 +14,8 @@ spring:
     hibernate:
       ddl-auto: update
     show-sql: true
+  cache:
+    type: none
   flyway:
     enabled: true
     baseline-on-migrate: false

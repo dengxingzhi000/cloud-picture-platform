@@ -1,4 +1,4 @@
-package com.cn.cloudpictureplatform.websocket;
+package com.cn.cloudpictureplatform.application.collaboration;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;

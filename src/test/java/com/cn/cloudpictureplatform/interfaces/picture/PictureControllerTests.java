@@ -9,13 +9,14 @@ import com.cn.cloudpictureplatform.application.picture.PictureQueryService;
 import com.cn.cloudpictureplatform.application.picture.PictureTagService;
 import com.cn.cloudpictureplatform.application.picture.PictureDocumentService;
 import com.cn.cloudpictureplatform.application.picture.PictureCollaborationRoomService;
-import com.cn.cloudpictureplatform.interfaces.picture.dto.PictureCollaborationRoomResponse;
+import com.cn.cloudpictureplatform.application.shared.dto.PictureCollaborationRoomResponse;
 import com.cn.cloudpictureplatform.domain.user.UserRole;
 import com.cn.cloudpictureplatform.infrastructure.security.AppUserPrincipal;
-import com.cn.cloudpictureplatform.interfaces.picture.dto.PictureEditorDocumentResponse;
+import com.cn.cloudpictureplatform.application.shared.dto.PictureEditorDocumentResponse;
 import com.cn.cloudpictureplatform.interfaces.picture.dto.PictureEditorSessionResponse;
-import com.cn.cloudpictureplatform.websocket.EditLockService;
-import com.cn.cloudpictureplatform.websocket.PictureCollabAccessService;
+import com.cn.cloudpictureplatform.websocket.EditLockPort;
+import com.cn.cloudpictureplatform.application.collaboration.PictureCollabAccessService;
+import com.cn.cloudpictureplatform.application.shared.dto.PictureDetailResponse;
 import com.cn.cloudpictureplatform.websocket.PictureCollabController;
 import com.cn.cloudpictureplatform.websocket.PresenceService;
 import com.cn.cloudpictureplatform.websocket.dto.PresenceSnapshot;
@@ -51,18 +52,18 @@ class PictureControllerTests {
     private PresenceService presenceService;
 
     @Mock
-    private EditLockService editLockService;
+    private EditLockPort editLockService;
 
     private PictureController controller;
 
     @BeforeEach
     void setUp() {
         controller = new PictureController(
-                pictureUploadService,
+                pictureCollaborationRoomService,
+                pictureDocumentService,
                 pictureQueryService,
                 pictureTagService,
-                pictureDocumentService,
-                pictureCollaborationRoomService,
+                pictureUploadService,
                 pictureCollabAccessService,
                 presenceService,
                 editLockService
@@ -83,7 +84,7 @@ class PictureControllerTests {
 
         when(pictureCollabAccessService.canAccess(pictureId, userId, java.util.Set.of())).thenReturn(true);
         when(pictureQueryService.getPictureDetail(pictureId, userId, java.util.Set.of("ROLE_USER")))
-                .thenReturn(com.cn.cloudpictureplatform.interfaces.picture.dto.PictureDetailResponse.builder()
+                .thenReturn(PictureDetailResponse.builder()
                         .id(pictureId)
                         .canEdit(true)
                         .canManage(false)

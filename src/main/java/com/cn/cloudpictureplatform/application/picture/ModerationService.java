@@ -31,11 +31,12 @@ import com.cn.cloudpictureplatform.infrastructure.persistence.AppUserRepository;
 import com.cn.cloudpictureplatform.infrastructure.persistence.ModerationRecordRepository;
 import com.cn.cloudpictureplatform.infrastructure.persistence.PictureAssetRepository;
 import com.cn.cloudpictureplatform.infrastructure.persistence.SpaceRepository;
-import com.cn.cloudpictureplatform.interfaces.admin.dto.AdminPictureSummary;
-import com.cn.cloudpictureplatform.interfaces.admin.dto.ModerationRecordResponse;
-import com.cn.cloudpictureplatform.interfaces.picture.dto.PictureResponse;
+import com.cn.cloudpictureplatform.application.shared.dto.AdminPictureSummary;
+import com.cn.cloudpictureplatform.application.shared.dto.ModerationRecordResponse;
+import com.cn.cloudpictureplatform.application.shared.dto.PictureResponse;
 
 @Service
+@Transactional(readOnly = true)
 public class ModerationService {
 
     private final PictureAssetRepository pictureAssetRepository;

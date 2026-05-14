@@ -5,7 +5,7 @@ import com.cn.cloudpictureplatform.common.exception.ApiException;
 import com.cn.cloudpictureplatform.config.CollaborationProperties;
 import com.cn.cloudpictureplatform.config.JwtProperties;
 import com.cn.cloudpictureplatform.infrastructure.security.AppUserPrincipal;
-import com.cn.cloudpictureplatform.interfaces.picture.dto.PictureCollaborationRoomResponse;
+import com.cn.cloudpictureplatform.application.shared.dto.PictureCollaborationRoomResponse;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import java.nio.charset.StandardCharsets;

@@ -20,7 +20,6 @@ import com.cn.cloudpictureplatform.infrastructure.persistence.UserRoleRepository
 @Component
 @ConditionalOnProperty(prefix = "app.bootstrap.admin", name = "enabled", havingValue = "true")
 public class DataInitializer implements ApplicationRunner {
-
     private static final String ADMIN_USERNAME = "admin";
     private static final String ADMIN_ROLE_NAME = "ROLE_ADMIN";
 
@@ -58,15 +57,20 @@ public class DataInitializer implements ApplicationRunner {
                 .build();
         admin = userRepository.save(admin);
 
-        // Assign ROLE_ADMIN
-        Role adminRole = roleRepository.findByName(ADMIN_ROLE_NAME).orElse(null);
-        if (adminRole != null) {
-            UserRole userRole = UserRole.builder()
-                    .userId(admin.getId())
-                    .roleId(adminRole.getId())
+        // Assign ROLE_ADMIN (create if not exists)
+        Role adminRole = roleRepository.findByName(ADMIN_ROLE_NAME).orElseGet(() -> {
+            Role newRole = Role.builder()
+                    .name(ADMIN_ROLE_NAME)
+                    .description("System administrator")
+                    .isSystem(true)
                     .build();
-            userRoleRepository.save(userRole);
-        }
+            return roleRepository.save(newRole);
+        });
+        UserRole userRole = UserRole.builder()
+                .userId(admin.getId())
+                .roleId(adminRole.getId())
+                .build();
+        userRoleRepository.save(userRole);
 
         // Create personal space
         boolean spaceExists = spaceRepository

@@ -9,6 +9,7 @@ import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
+import com.cn.cloudpictureplatform.application.search.SearchIndexService;
 import com.cn.cloudpictureplatform.common.exception.ApiException;
 import com.cn.cloudpictureplatform.common.web.ApiErrorCode;
 import com.cn.cloudpictureplatform.domain.picture.PictureTag;
@@ -16,23 +17,23 @@ import com.cn.cloudpictureplatform.domain.picture.Tag;
 import com.cn.cloudpictureplatform.infrastructure.persistence.PictureTagRepository;
 import com.cn.cloudpictureplatform.infrastructure.persistence.TagRepository;
 import com.cn.cloudpictureplatform.infrastructure.persistence.PictureAssetRepository;
-import com.cn.cloudpictureplatform.interfaces.picture.dto.PictureTagCreateRequest;
-import com.cn.cloudpictureplatform.interfaces.picture.dto.PictureTagItemRequest;
-import com.cn.cloudpictureplatform.interfaces.picture.dto.PictureTagResponse;
+import com.cn.cloudpictureplatform.application.picture.dto.PictureTagCreateRequest;
+import com.cn.cloudpictureplatform.application.picture.dto.PictureTagItemRequest;
+import com.cn.cloudpictureplatform.application.shared.dto.PictureTagResponse;
 
 @Service
+@Transactional(readOnly = true)
 public class PictureTagService {
-
     private final PictureTagRepository pictureTagRepository;
     private final TagRepository tagRepository;
     private final PictureAssetRepository pictureAssetRepository;
-    private final com.cn.cloudpictureplatform.application.search.SearchIndexService searchIndexService;
+    private final SearchIndexService searchIndexService;
 
     public PictureTagService(
             PictureTagRepository pictureTagRepository,
             TagRepository tagRepository,
             PictureAssetRepository pictureAssetRepository,
-            com.cn.cloudpictureplatform.application.search.SearchIndexService searchIndexService
+            SearchIndexService searchIndexService
     ) {
         this.pictureTagRepository = pictureTagRepository;
         this.tagRepository = tagRepository;

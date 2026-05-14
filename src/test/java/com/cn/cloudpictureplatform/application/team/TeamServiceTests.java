@@ -25,8 +25,8 @@ import com.cn.cloudpictureplatform.infrastructure.persistence.AppUserRepository;
 import com.cn.cloudpictureplatform.infrastructure.persistence.TeamMemberEventRepository;
 import com.cn.cloudpictureplatform.infrastructure.persistence.TeamMemberRepository;
 import com.cn.cloudpictureplatform.infrastructure.persistence.TeamRepository;
-import com.cn.cloudpictureplatform.interfaces.team.dto.TeamInviteRequest;
-import com.cn.cloudpictureplatform.interfaces.team.dto.TeamSummaryResponse;
+import com.cn.cloudpictureplatform.application.team.dto.TeamInviteRequest;
+import com.cn.cloudpictureplatform.application.team.dto.TeamSummaryResponse;
 import com.cn.cloudpictureplatform.websocket.NotificationPublisher;
 
 @ExtendWith(MockitoExtension.class)
@@ -45,17 +45,25 @@ class TeamServiceTests {
     @Mock
     private NotificationPublisher notificationPublisher;
 
-    private TeamService teamService;
+    private TeamCommandService teamCommandService;
+    private TeamQueryService teamQueryService;
 
     @BeforeEach
     void setUp() {
-        teamService = new TeamService(
+        teamCommandService = new TeamCommandService(
                 teamRepository,
                 teamMemberRepository,
                 teamMemberEventRepository,
                 spaceRepository,
                 appUserRepository,
                 notificationPublisher
+        );
+        teamQueryService = new TeamQueryService(
+                teamRepository,
+                teamMemberRepository,
+                teamMemberEventRepository,
+                spaceRepository,
+                appUserRepository
         );
     }
 
@@ -105,7 +113,7 @@ class TeamServiceTests {
         request.setUsername("bob");
         request.setRole(TeamRole.MEMBER);
 
-        teamService.inviteMember(teamId, inviterId, request);
+        teamCommandService.inviteMember(teamId, inviterId, request);
 
         verify(teamMemberEventRepository).save(any(TeamMemberEvent.class));
         verify(notificationPublisher).notifyTeamInvite("bob", teamId, "Design Team", "alice");
@@ -124,11 +132,13 @@ class TeamServiceTests {
                 .status(TeamMemberStatus.ACTIVE)
                 .build();
 
+        java.time.Instant now = java.time.Instant.now();
         Team team = Team.builder()
                 .ownerId(userId)
                 .name("Design Team")
                 .build();
         team.setId(teamId);
+        team.setCreatedAt(now);
 
         Space space = Space.builder()
                 .ownerId(userId)
@@ -142,9 +152,8 @@ class TeamServiceTests {
                 .thenReturn(List.of(membership));
         when(teamRepository.findAllById(List.of(teamId))).thenReturn(List.of(team));
         when(spaceRepository.findByTeamIdIn(List.of(teamId))).thenReturn(List.of(space));
-        when(teamMemberRepository.countByTeamIdAndStatus(teamId, TeamMemberStatus.ACTIVE)).thenReturn(1L);
 
-        List<TeamSummaryResponse> responses = teamService.listMyTeams(userId);
+        List<TeamSummaryResponse> responses = teamQueryService.listMyTeams(userId);
 
         assertEquals(1, responses.size());
         assertEquals(teamId, responses.get(0).getId());

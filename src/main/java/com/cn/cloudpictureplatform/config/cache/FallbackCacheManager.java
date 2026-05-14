@@ -10,7 +10,6 @@ import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
 
 public class FallbackCacheManager implements CacheManager {
-
     private final CacheManager primary;
     private final CacheManager fallback;
 

@@ -19,6 +19,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import com.cn.cloudpictureplatform.common.exception.ApiException;
 import com.cn.cloudpictureplatform.common.web.ApiErrorCode;
@@ -40,10 +41,12 @@ import com.cn.cloudpictureplatform.infrastructure.persistence.PictureTagReposito
 import com.cn.cloudpictureplatform.infrastructure.persistence.SpaceRepository;
 import com.cn.cloudpictureplatform.infrastructure.persistence.TeamMemberRepository;
 import com.cn.cloudpictureplatform.infrastructure.persistence.TeamRepository;
-import com.cn.cloudpictureplatform.interfaces.picture.dto.PictureDetailResponse;
-import com.cn.cloudpictureplatform.interfaces.picture.dto.PictureSummary;
+import com.cn.cloudpictureplatform.application.shared.dto.PictureDetailResponse;
+import com.cn.cloudpictureplatform.application.shared.dto.PictureSummary;
+import com.cn.cloudpictureplatform.application.shared.dto.PictureTagResponse;
 
 @Service
+@Transactional(readOnly = true)
 public class PictureQueryService {
 
     private final PictureAssetRepository pictureAssetRepository;
@@ -82,9 +85,10 @@ public class PictureQueryService {
 
         AppUser owner = appUserRepository.findById(asset.getOwnerId()).orElse(null);
         Team team = space.getTeamId() == null ? null : teamRepository.findById(space.getTeamId()).orElse(null);
-        List<com.cn.cloudpictureplatform.interfaces.picture.dto.PictureTagResponse> tags = pictureTagRepository
-                .findByPictureAssetIdOrderByCreatedAtDesc(pictureId).stream()
-                .map(tag -> com.cn.cloudpictureplatform.interfaces.picture.dto.PictureTagResponse.builder()
+        List<PictureTagResponse> tags = pictureTagRepository
+                .findByPictureAssetId(pictureId)
+                .stream()
+                .map(tag -> PictureTagResponse.builder()
                         .id(tag.getId())
                         .pictureAssetId(tag.getPictureAssetId())
                         .tagId(tag.getTagId())

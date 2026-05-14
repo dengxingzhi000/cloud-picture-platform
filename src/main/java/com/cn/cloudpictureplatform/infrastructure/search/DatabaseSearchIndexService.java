@@ -12,7 +12,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.task.TaskExecutor;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.util.StringUtils;
 import com.cn.cloudpictureplatform.application.search.SearchIndexService;
 import com.cn.cloudpictureplatform.domain.picture.PictureAsset;
@@ -29,6 +29,7 @@ public class DatabaseSearchIndexService implements SearchIndexService {
     private final PictureAssetRepository pictureAssetRepository;
     private final PictureTagRepository pictureTagRepository;
     private final PictureSearchDocumentRepository pictureSearchDocumentRepository;
+    private final TransactionTemplate transactionTemplate;
     private final Counter successCounter;
     private final Counter failureCounter;
     private final Counter enqueueCounter;
@@ -38,19 +39,20 @@ public class DatabaseSearchIndexService implements SearchIndexService {
             PictureAssetRepository pictureAssetRepository,
             PictureTagRepository pictureTagRepository,
             PictureSearchDocumentRepository pictureSearchDocumentRepository,
+            TransactionTemplate transactionTemplate,
             MeterRegistry meterRegistry
     ) {
         this.searchIndexTaskExecutor = searchIndexTaskExecutor;
         this.pictureAssetRepository = pictureAssetRepository;
         this.pictureTagRepository = pictureTagRepository;
         this.pictureSearchDocumentRepository = pictureSearchDocumentRepository;
+        this.transactionTemplate = transactionTemplate;
         this.successCounter = meterRegistry.counter("search.index.success");
         this.failureCounter = meterRegistry.counter("search.index.failure");
         this.enqueueCounter = meterRegistry.counter("search.index.enqueued");
     }
 
     @Override
-    @Transactional
     public void enqueuePicture(UUID pictureId) {
         if (pictureId == null) {
             return;
@@ -61,8 +63,7 @@ public class DatabaseSearchIndexService implements SearchIndexService {
         });
     }
 
-    @Transactional
-    public void indexPicture(UUID pictureId) {
+    private void indexPicture(UUID pictureId) {
         PictureAsset asset = pictureAssetRepository.findById(pictureId).orElse(null);
         if (asset == null) {
             pictureSearchDocumentRepository.deleteById(pictureId);
@@ -81,7 +82,9 @@ public class DatabaseSearchIndexService implements SearchIndexService {
     private void indexWithRetry(UUID pictureId, int maxAttempts) {
         for (int attempt = 1; attempt <= maxAttempts; attempt++) {
             try {
-                indexPicture(pictureId);
+                transactionTemplate.executeWithoutResult(status -> {
+                    indexPicture(pictureId);
+                });
                 return;
             } catch (Exception ex) {
                 if (attempt == maxAttempts) {

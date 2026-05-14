@@ -8,8 +8,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
 import java.util.List;
 
 /**
@@ -29,7 +27,6 @@ public class OrphanFileCleanupTask {
      * 清理引用计数 <= 0 的孤儿文件
      */
     @Scheduled(cron = "0 0 2 * * ?")
-    @Transactional
     public void cleanupOrphanFiles() {
         log.info("Starting orphan file cleanup task");
 

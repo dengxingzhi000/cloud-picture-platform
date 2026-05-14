@@ -17,9 +17,9 @@ import org.springframework.web.bind.annotation.RestController;
 import com.cn.cloudpictureplatform.application.rbac.PermissionService;
 import com.cn.cloudpictureplatform.common.web.ApiResponse;
 import com.cn.cloudpictureplatform.common.web.PageResponse;
-import com.cn.cloudpictureplatform.interfaces.admin.dto.rbac.PermissionCreateRequest;
-import com.cn.cloudpictureplatform.interfaces.admin.dto.rbac.PermissionResponse;
-import com.cn.cloudpictureplatform.interfaces.admin.dto.rbac.PermissionUpdateRequest;
+import com.cn.cloudpictureplatform.application.rbac.dto.PermissionCreateRequest;
+import com.cn.cloudpictureplatform.application.shared.dto.PermissionResponse;
+import com.cn.cloudpictureplatform.application.rbac.dto.PermissionUpdateRequest;
 import lombok.RequiredArgsConstructor;
 
 @Validated

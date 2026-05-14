@@ -1,6 +1,7 @@
 package com.cn.cloudpictureplatform.application.rbac;
 
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -18,9 +19,9 @@ import com.cn.cloudpictureplatform.domain.rbac.RolePermission;
 import com.cn.cloudpictureplatform.infrastructure.persistence.PermissionRepository;
 import com.cn.cloudpictureplatform.infrastructure.persistence.RolePermissionRepository;
 import com.cn.cloudpictureplatform.infrastructure.persistence.RoleRepository;
-import com.cn.cloudpictureplatform.interfaces.admin.dto.rbac.RoleCreateRequest;
-import com.cn.cloudpictureplatform.interfaces.admin.dto.rbac.RoleResponse;
-import com.cn.cloudpictureplatform.interfaces.admin.dto.rbac.RoleUpdateRequest;
+import com.cn.cloudpictureplatform.application.rbac.dto.RoleCreateRequest;
+import com.cn.cloudpictureplatform.application.shared.dto.RoleResponse;
+import com.cn.cloudpictureplatform.application.rbac.dto.RoleUpdateRequest;
 import lombok.RequiredArgsConstructor;
 
 @Service
@@ -112,20 +113,25 @@ public class RoleService {
 
         rolePermissionRepository.deleteByRoleId(roleId);
 
-        Set<Permission> permissions = new HashSet<>();
-        for (UUID permissionId : permissionIds) {
-            Permission permission = permissionRepository.findById(permissionId)
-                    .orElseThrow(() -> new ApiException(ApiErrorCode.PERMISSION_NOT_FOUND, "Permission not found: " + permissionId));
-            permissions.add(permission);
-
-            RolePermission rolePermission = RolePermission.builder()
-                    .roleId(roleId)
-                    .permissionId(permissionId)
-                    .build();
-            rolePermissionRepository.save(rolePermission);
+        List<Permission> permissions = permissionRepository.findAllById(permissionIds);
+        if (permissions.size() != permissionIds.size()) {
+            Set<UUID> foundIds = permissions.stream().map(Permission::getId).collect(Collectors.toSet());
+            Set<UUID> missing = new HashSet<>(permissionIds);
+            missing.removeAll(foundIds);
+            if (!missing.isEmpty()) {
+                throw new ApiException(ApiErrorCode.PERMISSION_NOT_FOUND, "Permissions not found: " + missing);
+            }
         }
 
-        role.setPermissions(permissions);
+        List<RolePermission> rolePermissions = permissions.stream()
+                .map(p -> RolePermission.builder()
+                        .roleId(roleId)
+                        .permissionId(p.getId())
+                        .build())
+                .collect(Collectors.toList());
+        rolePermissionRepository.saveAll(rolePermissions);
+
+        role.setPermissions(new HashSet<>(permissions));
         roleRepository.save(role);
     }
 

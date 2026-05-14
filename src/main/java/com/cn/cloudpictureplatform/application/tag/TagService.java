@@ -17,11 +17,12 @@ import com.cn.cloudpictureplatform.domain.picture.PictureTag;
 import com.cn.cloudpictureplatform.domain.picture.Tag;
 import com.cn.cloudpictureplatform.infrastructure.persistence.PictureTagRepository;
 import com.cn.cloudpictureplatform.infrastructure.persistence.TagRepository;
-import com.cn.cloudpictureplatform.interfaces.tag.dto.TagCreateRequest;
-import com.cn.cloudpictureplatform.interfaces.tag.dto.TagResponse;
-import com.cn.cloudpictureplatform.interfaces.tag.dto.TagUpdateRequest;
+import com.cn.cloudpictureplatform.application.shared.dto.TagResponse;
+import com.cn.cloudpictureplatform.application.tag.dto.TagCreateRequest;
+import com.cn.cloudpictureplatform.application.tag.dto.TagUpdateRequest;
 
 @Service
+@Transactional(readOnly = true)
 public class TagService {
     private final TagRepository tagRepository;
     private final PictureTagRepository pictureTagRepository;

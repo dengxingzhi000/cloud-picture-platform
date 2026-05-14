@@ -19,11 +19,11 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.multipart.MultipartFile;
-import com.cn.cloudpictureplatform.application.picture.PictureUploadService;
+import com.cn.cloudpictureplatform.application.picture.PictureCollaborationRoomService;
+import com.cn.cloudpictureplatform.application.picture.PictureDocumentService;
 import com.cn.cloudpictureplatform.application.picture.PictureQueryService;
 import com.cn.cloudpictureplatform.application.picture.PictureTagService;
-import com.cn.cloudpictureplatform.application.picture.PictureDocumentService;
-import com.cn.cloudpictureplatform.application.picture.PictureCollaborationRoomService;
+import com.cn.cloudpictureplatform.application.picture.PictureUploadService;
 import com.cn.cloudpictureplatform.common.exception.ApiException;
 import com.cn.cloudpictureplatform.common.web.ApiErrorCode;
 import com.cn.cloudpictureplatform.common.web.ApiResponse;
@@ -32,55 +32,38 @@ import com.cn.cloudpictureplatform.domain.picture.ReviewStatus;
 import com.cn.cloudpictureplatform.domain.picture.Visibility;
 import com.cn.cloudpictureplatform.infrastructure.security.AppUserPrincipal;
 import com.cn.cloudpictureplatform.interfaces.picture.dto.EditorRealtimeEventDefinitionResponse;
-import com.cn.cloudpictureplatform.interfaces.picture.dto.PictureTagCreateRequest;
-import com.cn.cloudpictureplatform.interfaces.picture.dto.PictureDetailResponse;
-import com.cn.cloudpictureplatform.interfaces.picture.dto.PictureEditorDocumentResponse;
+import com.cn.cloudpictureplatform.application.picture.dto.PictureTagCreateRequest;
+import com.cn.cloudpictureplatform.application.shared.dto.PictureDetailResponse;
+import com.cn.cloudpictureplatform.application.shared.dto.PictureEditorDocumentResponse;
 import com.cn.cloudpictureplatform.interfaces.picture.dto.PictureEditorSessionResponse;
 import com.cn.cloudpictureplatform.interfaces.picture.dto.EditorRealtimeContractResponse;
-import com.cn.cloudpictureplatform.interfaces.picture.dto.PictureCollaborationRoomResponse;
-import com.cn.cloudpictureplatform.interfaces.picture.dto.PictureTagResponse;
-import com.cn.cloudpictureplatform.interfaces.picture.dto.PictureResponse;
-import com.cn.cloudpictureplatform.interfaces.picture.dto.PictureSummary;
-import com.cn.cloudpictureplatform.websocket.EditLockService;
-import com.cn.cloudpictureplatform.websocket.PictureCollabAccessService;
+import com.cn.cloudpictureplatform.application.shared.dto.PictureCollaborationRoomResponse;
+import com.cn.cloudpictureplatform.application.shared.dto.PictureTagResponse;
+import com.cn.cloudpictureplatform.application.shared.dto.PictureResponse;
+import com.cn.cloudpictureplatform.application.shared.dto.PictureSummary;
+import com.cn.cloudpictureplatform.application.picture.PictureCollaborationRoomService;
+import com.cn.cloudpictureplatform.websocket.EditLockPort;
+import com.cn.cloudpictureplatform.application.collaboration.PictureCollabAccessService;
 import com.cn.cloudpictureplatform.websocket.PictureCollabController;
 import com.cn.cloudpictureplatform.websocket.PresenceService;
 import com.cn.cloudpictureplatform.websocket.dto.PresenceSnapshot;
+import lombok.RequiredArgsConstructor;
 
 @Validated
 @RestController
 @RequestMapping("/api/pictures")
+@RequiredArgsConstructor
 public class PictureController {
     private static final String SESSION_CONTRACT_VERSION = "picture-editor-session.v1";
 
-    private final PictureUploadService pictureUploadService;
+    private final PictureCollaborationRoomService pictureCollaborationRoomService;
+    private final PictureDocumentService pictureDocumentService;
     private final PictureQueryService pictureQueryService;
     private final PictureTagService pictureTagService;
-    private final PictureDocumentService pictureDocumentService;
-    private final PictureCollaborationRoomService pictureCollaborationRoomService;
+    private final PictureUploadService pictureUploadService;
     private final PictureCollabAccessService pictureCollabAccessService;
     private final PresenceService presenceService;
-    private final EditLockService editLockService;
-
-    public PictureController(
-            PictureUploadService pictureUploadService,
-            PictureQueryService pictureQueryService,
-            PictureTagService pictureTagService,
-            PictureDocumentService pictureDocumentService,
-            PictureCollaborationRoomService pictureCollaborationRoomService,
-            PictureCollabAccessService pictureCollabAccessService,
-            PresenceService presenceService,
-            EditLockService editLockService
-    ) {
-        this.pictureUploadService = pictureUploadService;
-        this.pictureQueryService = pictureQueryService;
-        this.pictureTagService = pictureTagService;
-        this.pictureDocumentService = pictureDocumentService;
-        this.pictureCollaborationRoomService = pictureCollaborationRoomService;
-        this.pictureCollabAccessService = pictureCollabAccessService;
-        this.presenceService = presenceService;
-        this.editLockService = editLockService;
-    }
+    private final EditLockPort editLockService;
 
     @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ApiResponse<PictureResponse> upload(

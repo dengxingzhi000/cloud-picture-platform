@@ -24,10 +24,11 @@ import com.cn.cloudpictureplatform.common.web.ApiResponse;
 import com.cn.cloudpictureplatform.common.web.PageResponse;
 import com.cn.cloudpictureplatform.domain.picture.ReviewStatus;
 import com.cn.cloudpictureplatform.infrastructure.security.AppUserPrincipal;
-import com.cn.cloudpictureplatform.interfaces.admin.dto.AdminPictureSummary;
-import com.cn.cloudpictureplatform.interfaces.admin.dto.ModerationRecordResponse;
+import com.cn.cloudpictureplatform.application.shared.dto.AdminPictureSummary;
+import com.cn.cloudpictureplatform.common.util.CsvUtil;
+import com.cn.cloudpictureplatform.application.shared.dto.ModerationRecordResponse;
 import com.cn.cloudpictureplatform.interfaces.admin.dto.ReviewRequest;
-import com.cn.cloudpictureplatform.interfaces.picture.dto.PictureResponse;
+import com.cn.cloudpictureplatform.application.shared.dto.PictureResponse;
 
 @Validated
 @RestController
@@ -154,38 +155,26 @@ public class AdminPictureController {
         StringBuilder builder = new StringBuilder();
         builder.append("id,pictureId,reviewerId,reviewerUsername,reviewerDisplayName,fromStatus,toStatus,reason,reviewedAt\n");
         for (ModerationRecordResponse record : records) {
-            builder.append(escapeCsv(record.getId()))
+            builder.append(CsvUtil.escapeCsv(record.getId()))
                     .append(',')
-                    .append(escapeCsv(record.getPictureId()))
+                    .append(CsvUtil.escapeCsv(record.getPictureId()))
                     .append(',')
-                    .append(escapeCsv(record.getReviewerId()))
+                    .append(CsvUtil.escapeCsv(record.getReviewerId()))
                     .append(',')
-                    .append(escapeCsv(record.getReviewerUsername()))
+                    .append(CsvUtil.escapeCsv(record.getReviewerUsername()))
                     .append(',')
-                    .append(escapeCsv(record.getReviewerDisplayName()))
+                    .append(CsvUtil.escapeCsv(record.getReviewerDisplayName()))
                     .append(',')
-                    .append(escapeCsv(record.getFromStatus()))
+                    .append(CsvUtil.escapeCsv(record.getFromStatus()))
                     .append(',')
-                    .append(escapeCsv(record.getToStatus()))
+                    .append(CsvUtil.escapeCsv(record.getToStatus()))
                     .append(',')
-                    .append(escapeCsv(record.getReason()))
+                    .append(CsvUtil.escapeCsv(record.getReason()))
                     .append(',')
-                    .append(escapeCsv(record.getReviewedAt()))
+                    .append(CsvUtil.escapeCsv(record.getReviewedAt()))
                     .append('\n');
         }
         return builder.toString();
     }
 
-    private String escapeCsv(Object value) {
-        if (value == null) {
-            return "";
-        }
-        String text = String.valueOf(value);
-        boolean needsEscaping = text.contains(",") || text.contains("\"") || text.contains("\n") || text.contains("\r");
-        if (needsEscaping) {
-            text = text.replace("\"", "\"\"");
-            return "\"" + text + "\"";
-        }
-        return text;
-    }
 }

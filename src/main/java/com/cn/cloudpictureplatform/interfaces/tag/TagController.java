@@ -4,6 +4,7 @@ import java.util.UUID;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -16,10 +17,11 @@ import org.springframework.web.bind.annotation.RestController;
 import com.cn.cloudpictureplatform.application.tag.TagService;
 import com.cn.cloudpictureplatform.common.web.ApiResponse;
 import com.cn.cloudpictureplatform.common.web.PageResponse;
-import com.cn.cloudpictureplatform.interfaces.tag.dto.TagCreateRequest;
-import com.cn.cloudpictureplatform.interfaces.tag.dto.TagResponse;
-import com.cn.cloudpictureplatform.interfaces.tag.dto.TagUpdateRequest;
+import com.cn.cloudpictureplatform.application.shared.dto.TagResponse;
+import com.cn.cloudpictureplatform.application.tag.dto.TagCreateRequest;
+import com.cn.cloudpictureplatform.application.tag.dto.TagUpdateRequest;
 
+@Validated
 @RestController
 @RequestMapping("/api/tags")
 public class TagController {

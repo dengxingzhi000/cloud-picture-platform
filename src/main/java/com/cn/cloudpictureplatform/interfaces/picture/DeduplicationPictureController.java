@@ -5,7 +5,7 @@ import com.cn.cloudpictureplatform.common.web.ApiResponse;
 import com.cn.cloudpictureplatform.domain.picture.PictureAsset;
 import com.cn.cloudpictureplatform.domain.picture.Visibility;
 import com.cn.cloudpictureplatform.infrastructure.security.AppUserPrincipal;
-import com.cn.cloudpictureplatform.interfaces.picture.dto.PictureResponse;
+import com.cn.cloudpictureplatform.application.shared.dto.PictureResponse;
 import com.cn.cloudpictureplatform.interfaces.picture.dto.RapidUploadCheckResponse;
 import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;

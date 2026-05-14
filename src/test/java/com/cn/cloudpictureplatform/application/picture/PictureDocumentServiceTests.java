@@ -10,7 +10,7 @@ import com.cn.cloudpictureplatform.common.exception.ApiException;
 import com.cn.cloudpictureplatform.domain.picture.PictureEditorDocument;
 import com.cn.cloudpictureplatform.infrastructure.persistence.PictureAssetRepository;
 import com.cn.cloudpictureplatform.infrastructure.persistence.PictureEditorDocumentRepository;
-import com.cn.cloudpictureplatform.interfaces.picture.dto.PictureEditorDocumentResponse;
+import com.cn.cloudpictureplatform.application.shared.dto.PictureEditorDocumentResponse;
 import com.cn.cloudpictureplatform.websocket.dto.CollabMessage;
 import com.cn.cloudpictureplatform.websocket.dto.PictureDocumentOperationPayload;
 import java.time.Instant;

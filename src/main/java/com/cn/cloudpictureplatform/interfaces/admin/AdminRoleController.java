@@ -18,10 +18,10 @@ import org.springframework.web.bind.annotation.RestController;
 import com.cn.cloudpictureplatform.application.rbac.RoleService;
 import com.cn.cloudpictureplatform.common.web.ApiResponse;
 import com.cn.cloudpictureplatform.common.web.PageResponse;
-import com.cn.cloudpictureplatform.interfaces.admin.dto.rbac.RoleCreateRequest;
+import com.cn.cloudpictureplatform.application.rbac.dto.RoleCreateRequest;
+import com.cn.cloudpictureplatform.application.rbac.dto.RoleUpdateRequest;
+import com.cn.cloudpictureplatform.application.shared.dto.RoleResponse;
 import com.cn.cloudpictureplatform.interfaces.admin.dto.rbac.RolePermissionUpdateRequest;
-import com.cn.cloudpictureplatform.interfaces.admin.dto.rbac.RoleResponse;
-import com.cn.cloudpictureplatform.interfaces.admin.dto.rbac.RoleUpdateRequest;
 import lombok.RequiredArgsConstructor;
 
 @Validated

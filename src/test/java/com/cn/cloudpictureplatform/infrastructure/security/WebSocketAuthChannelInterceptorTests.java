@@ -17,8 +17,7 @@ import org.springframework.messaging.simp.stomp.StompCommand;
 import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.security.access.AccessDeniedException;
-import com.cn.cloudpictureplatform.domain.user.UserRole;
-import com.cn.cloudpictureplatform.websocket.PictureCollabAccessService;
+import com.cn.cloudpictureplatform.application.collaboration.PictureCollabAccessService;
 
 @ExtendWith(MockitoExtension.class)
 class WebSocketAuthChannelInterceptorTests {
