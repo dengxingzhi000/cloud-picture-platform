@@ -17,6 +17,7 @@ import com.cn.cloudpictureplatform.common.exception.ApiException;
 import com.cn.cloudpictureplatform.common.web.ApiErrorCode;
 import com.cn.cloudpictureplatform.application.shared.dto.PictureResponse;
 import com.cn.cloudpictureplatform.application.space.SpacePermissionValidator;
+import com.cn.cloudpictureplatform.application.space.SpaceQuotaService;
 import com.cn.cloudpictureplatform.domain.picture.PictureAsset;
 import com.cn.cloudpictureplatform.domain.picture.ReviewStatus;
 import com.cn.cloudpictureplatform.domain.picture.Visibility;
@@ -32,6 +33,7 @@ public class PictureUploadService {
     private final PictureAssetRepository pictureAssetRepository;
     private final SpaceRepository spaceRepository;
     private final SpacePermissionValidator spacePermissionValidator;
+    private final SpaceQuotaService spaceQuotaService;
     private final com.cn.cloudpictureplatform.application.search.SearchIndexService searchIndexService;
     private final org.springframework.context.ApplicationEventPublisher eventPublisher;
 
@@ -40,6 +42,7 @@ public class PictureUploadService {
             PictureAssetRepository pictureAssetRepository,
             SpaceRepository spaceRepository,
             SpacePermissionValidator spacePermissionValidator,
+            SpaceQuotaService spaceQuotaService,
             com.cn.cloudpictureplatform.application.search.SearchIndexService searchIndexService,
             org.springframework.context.ApplicationEventPublisher eventPublisher
     ) {
@@ -47,6 +50,7 @@ public class PictureUploadService {
         this.pictureAssetRepository = pictureAssetRepository;
         this.spaceRepository = spaceRepository;
         this.spacePermissionValidator = spacePermissionValidator;
+        this.spaceQuotaService = spaceQuotaService;
         this.searchIndexService = searchIndexService;
         this.eventPublisher = eventPublisher;
     }
@@ -57,6 +61,7 @@ public class PictureUploadService {
             throw new ApiException(ApiErrorCode.BAD_REQUEST, "file is empty");
         }
         Space space = spacePermissionValidator.resolveAndValidateSpace(ownerId, spaceId);
+        spaceQuotaService.assertQuotaAvailable(space.getId(), file.getSize());
 
         String originalFilename = StringUtils.hasText(file.getOriginalFilename())
                 ? file.getOriginalFilename()

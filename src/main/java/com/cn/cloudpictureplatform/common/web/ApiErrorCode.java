@@ -21,7 +21,10 @@ public enum ApiErrorCode {
     CANNOT_DELETE_SYSTEM_PERMISSION("CANNOT_DELETE_SYSTEM_PERMISSION", "cannot delete system permission"),
     CANNOT_REMOVE_LAST_ADMIN("CANNOT_REMOVE_LAST_ADMIN", "cannot remove last admin role"),
     USER_ROLE_ALREADY_ASSIGNED("USER_ROLE_ALREADY_ASSIGNED", "role already assigned to user"),
-    USER_ROLE_NOT_FOUND("USER_ROLE_NOT_FOUND", "role not assigned to user");
+    USER_ROLE_NOT_FOUND("USER_ROLE_NOT_FOUND", "role not assigned to user"),
+
+    // Space Quota Error Codes
+    QUOTA_EXCEEDED("QUOTA_EXCEEDED", "space quota exceeded");
 
     private final String code;
     private final String defaultMessage;

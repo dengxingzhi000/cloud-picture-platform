@@ -17,6 +17,7 @@ import com.cn.cloudpictureplatform.domain.team.TeamMemberStatus;
 import com.cn.cloudpictureplatform.domain.user.AppUser;
 import com.cn.cloudpictureplatform.application.search.SearchIndexService;
 import com.cn.cloudpictureplatform.application.space.SpacePermissionValidator;
+import com.cn.cloudpictureplatform.application.space.SpaceQuotaService;
 import com.cn.cloudpictureplatform.infrastructure.persistence.AppUserRepository;
 import com.cn.cloudpictureplatform.infrastructure.persistence.PictureAssetRepository;
 import com.cn.cloudpictureplatform.infrastructure.persistence.SpaceRepository;
@@ -55,6 +56,7 @@ public class DeduplicationPictureUploadService {
     private final SpaceRepository spaceRepository;
     private final TeamMemberRepository teamMemberRepository;
     private final SpacePermissionValidator spacePermissionValidator;
+    private final SpaceQuotaService spaceQuotaService;
     private final AppUserRepository appUserRepository;
     private final PictureResponseConverter responseConverter;
     private final SearchIndexService searchIndexService;
@@ -90,6 +92,7 @@ public class DeduplicationPictureUploadService {
 
         // 1. 校验空间权限
         Space space = resolveSpace(ownerId, spaceId);
+        spaceQuotaService.assertQuotaAvailable(space.getId(), file.getSize());
 
         // 2. 计算文件哈希（用于去重检测）
         ImageHashResult hashResult = computeHashes(file);
