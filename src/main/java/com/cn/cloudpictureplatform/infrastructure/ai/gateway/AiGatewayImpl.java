@@ -7,7 +7,8 @@ import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.Optional;
 import java.util.UUID;
-import org.springframework.beans.factory.annotation.Qualifier;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import io.github.resilience4j.timelimiter.annotation.TimeLimiter;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 import com.cn.cloudpictureplatform.infrastructure.ai.dto.AiChatRequest;
@@ -47,6 +48,7 @@ public class AiGatewayImpl implements AiGateway {
     }
 
     @Override
+    @CircuitBreaker(name = "ai-embedding", fallbackMethod = "embedTextFallback")
     public Optional<float[]> embedText(String text) {
         long start = System.currentTimeMillis();
         try {
@@ -149,6 +151,12 @@ public class AiGatewayImpl implements AiGateway {
             log.warn("AI chat failed: {}", ex.getMessage());
             return new AiChatResponse(request.sessionId(), "AI service unavailable", "error", java.util.List.of());
         }
+    }
+
+    @SuppressWarnings("unused")
+    private Optional<float[]> embedTextFallback(String text, Throwable t) {
+        log.warn("AI embedding circuit breaker fallback: {}", t.getMessage());
+        return Optional.empty();
     }
 
     private void audit(String taskType, boolean success, long latencyMs) {

@@ -27,6 +27,8 @@ import com.cn.cloudpictureplatform.domain.picture.PictureAsset;
 import com.cn.cloudpictureplatform.domain.picture.ReviewStatus;
 import com.cn.cloudpictureplatform.domain.picture.Visibility;
 import com.cn.cloudpictureplatform.domain.user.AppUser;
+import com.cn.cloudpictureplatform.domain.ai.AiModerationRecord;
+import com.cn.cloudpictureplatform.infrastructure.persistence.AiModerationRecordRepository;
 import com.cn.cloudpictureplatform.infrastructure.persistence.AppUserRepository;
 import com.cn.cloudpictureplatform.infrastructure.persistence.ModerationRecordRepository;
 import com.cn.cloudpictureplatform.infrastructure.persistence.PictureAssetRepository;
@@ -41,6 +43,7 @@ public class ModerationService {
 
     private final PictureAssetRepository pictureAssetRepository;
     private final ModerationRecordRepository moderationRecordRepository;
+    private final AiModerationRecordRepository aiModerationRecordRepository;
     private final AppUserRepository appUserRepository;
     private final com.cn.cloudpictureplatform.application.search.SearchIndexService searchIndexService;
     private final org.springframework.context.ApplicationEventPublisher eventPublisher;
@@ -48,12 +51,14 @@ public class ModerationService {
     public ModerationService(
             PictureAssetRepository pictureAssetRepository,
             ModerationRecordRepository moderationRecordRepository,
+            AiModerationRecordRepository aiModerationRecordRepository,
             AppUserRepository appUserRepository,
             com.cn.cloudpictureplatform.application.search.SearchIndexService searchIndexService,
             org.springframework.context.ApplicationEventPublisher eventPublisher
     ) {
         this.pictureAssetRepository = pictureAssetRepository;
         this.moderationRecordRepository = moderationRecordRepository;
+        this.aiModerationRecordRepository = aiModerationRecordRepository;
         this.appUserRepository = appUserRepository;
         this.searchIndexService = searchIndexService;
         this.eventPublisher = eventPublisher;
@@ -94,6 +99,43 @@ public class ModerationService {
         ));
 
         return toResponse(saved);
+    }
+
+    @Transactional
+    public PictureResponse autoApprove(UUID pictureId, String provider) {
+        PictureAsset asset = pictureAssetRepository.findById(pictureId)
+                .orElseThrow(() -> new ApiException(ApiErrorCode.NOT_FOUND, "picture not found"));
+        asset.setReviewStatus(ReviewStatus.AUTO_APPROVED);
+        asset = pictureAssetRepository.save(asset);
+        searchIndexService.enqueuePicture(pictureId);
+        eventPublisher.publishEvent(new PictureReviewedEvent(
+                pictureId, asset.getName(), asset.getOwnerId(), true, "auto-approved by " + provider));
+        return toResponse(asset);
+    }
+
+    @Transactional
+    public PictureResponse autoReject(UUID pictureId, String reason, String provider) {
+        PictureAsset asset = pictureAssetRepository.findById(pictureId)
+                .orElseThrow(() -> new ApiException(ApiErrorCode.NOT_FOUND, "picture not found"));
+        asset.setReviewStatus(ReviewStatus.AUTO_REJECTED);
+        asset = pictureAssetRepository.save(asset);
+        searchIndexService.enqueuePicture(pictureId);
+        eventPublisher.publishEvent(new PictureReviewedEvent(
+                pictureId, asset.getName(), asset.getOwnerId(), false, reason));
+        return toResponse(asset);
+    }
+
+    @Transactional
+    public void saveAiModerationResult(UUID pictureId, String provider, String modelVersion,
+                                        boolean isSafe, double confidence,
+                                        List<String> violationCategories, String rawResponse,
+                                        int processingMs) {
+        aiModerationRecordRepository.save(AiModerationRecord.builder()
+                .pictureId(pictureId).provider(provider).modelVersion(modelVersion)
+                .isSafe(isSafe).confidence(confidence)
+                .violationCategories(violationCategories != null
+                        ? String.join(",", violationCategories) : null)
+                .rawResponse(rawResponse).processingMs(processingMs).build());
     }
 
     @Cacheable(cacheNames = "adminPending", key = "{ 'v1', #page, #size }")

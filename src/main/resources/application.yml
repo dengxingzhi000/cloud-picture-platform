@@ -77,3 +77,23 @@ management:
   metrics:
     enable:
       cache: true
+
+  ai:
+    enabled: false
+    gateway:
+      base-url: ${AI_PLATFORM_URL:http://localhost:8000}
+      timeout-ms:
+        embedding: 5000
+        tagging: 30000
+        moderation: 15000
+        chat: 60000
+    tagging:
+      enabled: true
+      min-confidence: 0.65
+      max-tags: 20
+      trigger: upload
+    moderation:
+      enabled: true
+      auto-approve-threshold: 0.92
+      auto-reject-threshold: 0.95
+      escalate-to-human: true
