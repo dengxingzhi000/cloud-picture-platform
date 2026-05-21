@@ -43,6 +43,9 @@ jobs:
           distribution: 'graalvm'
           cache: maven
 
+      - name: Grant execute permission for mvnw
+        run: chmod +x ./mvnw
+
       - name: Compile
         run: ./mvnw compile -q
 
