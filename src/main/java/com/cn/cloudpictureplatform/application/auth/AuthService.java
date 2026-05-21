@@ -14,6 +14,7 @@ import org.springframework.util.StringUtils;
 import com.cn.cloudpictureplatform.common.exception.ApiException;
 import com.cn.cloudpictureplatform.common.web.ApiErrorCode;
 import com.cn.cloudpictureplatform.config.JwtProperties;
+import com.cn.cloudpictureplatform.domain.rbac.Menu;
 import com.cn.cloudpictureplatform.domain.rbac.Role;
 import com.cn.cloudpictureplatform.domain.rbac.UserRole;
 import com.cn.cloudpictureplatform.domain.space.Space;
@@ -21,6 +22,7 @@ import com.cn.cloudpictureplatform.domain.space.SpaceType;
 import com.cn.cloudpictureplatform.domain.user.AppUser;
 import com.cn.cloudpictureplatform.domain.user.UserStatus;
 import com.cn.cloudpictureplatform.infrastructure.persistence.AppUserRepository;
+import com.cn.cloudpictureplatform.infrastructure.persistence.MenuRepository;
 import com.cn.cloudpictureplatform.infrastructure.persistence.RolePermissionRepository;
 import com.cn.cloudpictureplatform.infrastructure.persistence.RoleRepository;
 import com.cn.cloudpictureplatform.infrastructure.persistence.SpaceRepository;
@@ -30,6 +32,7 @@ import com.cn.cloudpictureplatform.infrastructure.security.JwtTokenService;
 import com.cn.cloudpictureplatform.application.shared.dto.AuthResponse;
 import com.cn.cloudpictureplatform.application.shared.dto.UserInfoResponse;
 import com.cn.cloudpictureplatform.application.auth.dto.LoginRequest;
+import com.cn.cloudpictureplatform.application.auth.dto.MenuItemResponse;
 import com.cn.cloudpictureplatform.application.auth.dto.RegisterRequest;
 import com.cn.cloudpictureplatform.application.auth.dto.UserProfileUpdateRequest;
 
@@ -45,6 +48,7 @@ public class AuthService {
     private final RoleRepository roleRepository;
     private final UserRoleRepository userRoleRepository;
     private final RolePermissionRepository rolePermissionRepository;
+    private final MenuRepository menuRepository;
 
     public AuthService(
             AppUserRepository appUserRepository,
@@ -54,7 +58,8 @@ public class AuthService {
             JwtProperties jwtProperties,
             RoleRepository roleRepository,
             UserRoleRepository userRoleRepository,
-            RolePermissionRepository rolePermissionRepository
+            RolePermissionRepository rolePermissionRepository,
+            MenuRepository menuRepository
     ) {
         this.appUserRepository = appUserRepository;
         this.spaceRepository = spaceRepository;
@@ -64,6 +69,7 @@ public class AuthService {
         this.roleRepository = roleRepository;
         this.userRoleRepository = userRoleRepository;
         this.rolePermissionRepository = rolePermissionRepository;
+        this.menuRepository = menuRepository;
     }
 
     @Transactional
@@ -216,5 +222,26 @@ public class AuthService {
         return roleRepository.findAllById(roleIds).stream()
                 .map(Role::getName)
                 .collect(Collectors.toSet());
+    }
+
+    public List<MenuItemResponse> getMenusForRoles(List<UUID> roleIds) {
+        List<Menu> menus = menuRepository.findByRoleIds(roleIds);
+        return buildMenuTree(menus, null);
+    }
+
+    private List<MenuItemResponse> buildMenuTree(List<Menu> menus, UUID parentId) {
+        return menus.stream()
+                .filter(m -> (parentId == null && m.getParentId() == null) ||
+                             (parentId != null && parentId.equals(m.getParentId())))
+                .map(m -> MenuItemResponse.builder()
+                        .id(m.getId())
+                        .name(m.getName())
+                        .code(m.getCode())
+                        .path(m.getPath())
+                        .icon(m.getIcon())
+                        .sortOrder(m.getSortOrder())
+                        .children(buildMenuTree(menus, m.getId()))
+                        .build())
+                .toList();
     }
 }
