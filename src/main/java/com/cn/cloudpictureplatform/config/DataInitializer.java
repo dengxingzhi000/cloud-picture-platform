@@ -44,43 +44,57 @@ public class DataInitializer implements ApplicationRunner {
     @Override
     @Transactional
     public void run(ApplicationArguments args) {
-        if (userRepository.findByUsername(ADMIN_USERNAME).isPresent()) {
+        // Ensure roles exist
+        Role adminRole = ensureRole("ROLE_ADMIN", "System administrator", true);
+        Role moderatorRole = ensureRole("ROLE_MODERATOR", "Content moderator", true);
+        Role userRole = ensureRole("ROLE_USER", "Default user role", true);
+
+        // Create test accounts
+        ensureUser("admin", "admin@local.dev", "admin123", "Admin", adminRole);
+        ensureUser("moderator", "moderator@local.dev", "mod123", "Moderator", moderatorRole);
+        ensureUser("testuser", "user@local.dev", "user123", "Test User", userRole);
+        ensureUser("alice", "alice@local.dev", "alice123", "Alice Wang", userRole);
+        ensureUser("bob", "bob@local.dev", "bob123", "Bob Li", moderatorRole);
+    }
+
+    private Role ensureRole(String name, String description, boolean isSystem) {
+        return roleRepository.findByName(name).orElseGet(() ->
+                roleRepository.save(Role.builder()
+                        .name(name)
+                        .description(description)
+                        .isSystem(isSystem)
+                        .build())
+        );
+    }
+
+    private void ensureUser(String username, String email, String password, String displayName, Role role) {
+        if (userRepository.findByUsername(username).isPresent()) {
             return;
         }
-
-        AppUser admin = AppUser.builder()
-                .username(ADMIN_USERNAME)
-                .email("admin@local.dev")
-                .passwordHash(passwordEncoder.encode("admin123"))
-                .displayName("Admin")
+        AppUser user = AppUser.builder()
+                .username(username)
+                .email(email)
+                .passwordHash(passwordEncoder.encode(password))
+                .displayName(displayName)
                 .status(UserStatus.ACTIVE)
                 .build();
-        admin = userRepository.save(admin);
+        user = userRepository.save(user);
 
-        // Assign ROLE_ADMIN (create if not exists)
-        Role adminRole = roleRepository.findByName(ADMIN_ROLE_NAME).orElseGet(() -> {
-            Role newRole = Role.builder()
-                    .name(ADMIN_ROLE_NAME)
-                    .description("System administrator")
-                    .isSystem(true)
-                    .build();
-            return roleRepository.save(newRole);
-        });
-        UserRole userRole = UserRole.builder()
-                .userId(admin.getId())
-                .roleId(adminRole.getId())
+        UserRole ur = UserRole.builder()
+                .userId(user.getId())
+                .roleId(role.getId())
                 .build();
-        userRoleRepository.save(userRole);
+        userRoleRepository.save(ur);
 
         // Create personal space
         boolean spaceExists = spaceRepository
-                .findFirstByOwnerIdAndType(admin.getId(), SpaceType.PERSONAL)
+                .findFirstByOwnerIdAndType(user.getId(), SpaceType.PERSONAL)
                 .isPresent();
         if (!spaceExists) {
             Space space = Space.builder()
-                    .ownerId(admin.getId())
+                    .ownerId(user.getId())
                     .type(SpaceType.PERSONAL)
-                    .name("Admin's Space")
+                    .name(displayName + "'s Space")
                     .quotaBytes(10L * 1024 * 1024 * 1024)
                     .usedBytes(0L)
                     .build();
