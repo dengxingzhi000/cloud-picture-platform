@@ -83,8 +83,8 @@ public class OutboxProcessor {
                 notificationPublisher.notifyAdminNewUpload(pictureId, pictureName, uploaderUsername);
             }
             case "TEAM_UPLOAD" -> {
-                // team picture upload notification is sent directly from PictureEventHandler
-                log.debug("Skipping TEAM_UPLOAD event {} (handled directly)", event.getId());
+                // team picture upload notification is sent via WebSocket subscriber
+                log.debug("Skipping TEAM_UPLOAD event {} (handled by DomainEventSubscriber)", event.getId());
             }
             default -> log.warn("Unknown picture event type: {}", event.getEventType());
         }
