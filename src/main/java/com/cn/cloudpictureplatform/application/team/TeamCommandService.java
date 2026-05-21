@@ -22,7 +22,9 @@ import com.cn.cloudpictureplatform.infrastructure.persistence.SpaceRepository;
 import com.cn.cloudpictureplatform.infrastructure.persistence.TeamMemberEventRepository;
 import com.cn.cloudpictureplatform.infrastructure.persistence.TeamMemberRepository;
 import com.cn.cloudpictureplatform.infrastructure.persistence.TeamRepository;
-import com.cn.cloudpictureplatform.websocket.NotificationPublisher;
+import com.cn.cloudpictureplatform.domain.events.DomainEventBus;
+import com.cn.cloudpictureplatform.domain.events.TeamInviteEvent;
+import com.cn.cloudpictureplatform.domain.events.TeamMemberJoinedEvent;
 import java.time.Instant;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
@@ -37,7 +39,7 @@ public class TeamCommandService {
     private final TeamMemberEventRepository teamMemberEventRepository;
     private final SpaceRepository spaceRepository;
     private final AppUserRepository appUserRepository;
-    private final NotificationPublisher notificationPublisher;
+    private final DomainEventBus domainEventBus;
 
     public TeamCommandService(
             TeamRepository teamRepository,
@@ -45,14 +47,14 @@ public class TeamCommandService {
             TeamMemberEventRepository teamMemberEventRepository,
             SpaceRepository spaceRepository,
             AppUserRepository appUserRepository,
-            NotificationPublisher notificationPublisher
+            DomainEventBus domainEventBus
     ) {
         this.teamRepository = teamRepository;
         this.teamMemberRepository = teamMemberRepository;
         this.teamMemberEventRepository = teamMemberEventRepository;
         this.spaceRepository = spaceRepository;
         this.appUserRepository = appUserRepository;
-        this.notificationPublisher = notificationPublisher;
+        this.domainEventBus = domainEventBus;
     }
 
     public TeamResponse createTeam(UUID ownerId, TeamCreateRequest request) {
@@ -127,9 +129,10 @@ public class TeamCommandService {
         Team team = teamRepository.findById(teamId)
                 .orElseThrow(() -> new ApiException(ApiErrorCode.NOT_FOUND, "team not found"));
         AppUser inviterUser = appUserRepository.findById(inviterId).orElse(null);
-        notificationPublisher.notifyTeamInvite(
-                invitee.getUsername(), teamId, team.getName(),
-                inviterUser == null ? "unknown" : inviterUser.getUsername());
+        domainEventBus.publish(new TeamInviteEvent(
+                teamId, team.getName(),
+                invitee.getUsername(),
+                inviterUser == null ? "unknown" : inviterUser.getUsername()));
         return toMemberResponse(savedMember, invitee, inviterUser);
     }
 
@@ -141,6 +144,12 @@ public class TeamCommandService {
         recordEvent(teamId, userId, userId, TeamMemberEventType.JOINED, saved.getRole());
         AppUser user = appUserRepository.findById(userId).orElse(null);
         AppUser inviter = member.getInvitedBy() != null ? appUserRepository.findById(member.getInvitedBy()).orElse(null) : null;
+        Team team = teamRepository.findById(teamId).orElse(null);
+        if (team != null && user != null) {
+            domainEventBus.publish(new TeamMemberJoinedEvent(
+                    teamId, team.getName(),
+                    user.getId(), user.getUsername()));
+        }
         return toMemberResponse(saved, user, inviter);
     }
 
