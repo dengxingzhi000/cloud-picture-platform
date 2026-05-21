@@ -1,5 +1,6 @@
 package com.cn.cloudpictureplatform.infrastructure.storage;
 
+import java.io.InputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -37,6 +38,37 @@ public class LocalStorageService implements StorageService {
         }
         String url = "/uploads/" + key.replace("\\", "/");
         return new StorageResult(key, url, file.getSize(), file.getContentType());
+    }
+
+    @Override
+    public StorageResult store(byte[] data, String key, String contentType) {
+        Path root = Paths.get(storageProperties.getLocal().getRoot()).toAbsolutePath().normalize();
+        Path target = root.resolve(key).normalize();
+        if (!target.startsWith(root)) {
+            throw new ApiException(ApiErrorCode.BAD_REQUEST, "invalid storage key");
+        }
+        try {
+            Files.createDirectories(target.getParent());
+            Files.write(target, data);
+        } catch (IOException ex) {
+            throw new ApiException(ApiErrorCode.SERVER_ERROR, "failed to store file");
+        }
+        String url = "/uploads/" + key.replace("\\", "/");
+        return new StorageResult(key, url, data.length, contentType);
+    }
+
+    @Override
+    public InputStream retrieve(String key) {
+        Path root = Paths.get(storageProperties.getLocal().getRoot()).toAbsolutePath().normalize();
+        Path target = root.resolve(key).normalize();
+        if (!target.startsWith(root)) {
+            throw new ApiException(ApiErrorCode.BAD_REQUEST, "invalid storage key");
+        }
+        try {
+            return Files.newInputStream(target);
+        } catch (IOException ex) {
+            throw new ApiException(ApiErrorCode.NOT_FOUND, "file not found: " + key);
+        }
     }
 
     @Override

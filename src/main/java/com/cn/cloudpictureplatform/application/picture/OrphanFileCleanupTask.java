@@ -18,7 +18,6 @@ import java.util.List;
 @Service
 @RequiredArgsConstructor
 public class OrphanFileCleanupTask {
-
     private final FileDeduplicationService fileDeduplicationService;
     private final StorageService storageService;
 

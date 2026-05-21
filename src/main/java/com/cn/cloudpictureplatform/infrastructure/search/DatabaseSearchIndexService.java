@@ -12,7 +12,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.task.TaskExecutor;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.util.StringUtils;
 import com.cn.cloudpictureplatform.application.search.SearchIndexService;
 import com.cn.cloudpictureplatform.domain.picture.PictureAsset;
@@ -29,9 +28,7 @@ public class DatabaseSearchIndexService implements SearchIndexService {
     private final PictureAssetRepository pictureAssetRepository;
     private final PictureTagRepository pictureTagRepository;
     private final PictureSearchDocumentRepository pictureSearchDocumentRepository;
-    private final TransactionTemplate transactionTemplate;
     private final Counter successCounter;
-    private final Counter failureCounter;
     private final Counter enqueueCounter;
 
     public DatabaseSearchIndexService(
@@ -39,16 +36,13 @@ public class DatabaseSearchIndexService implements SearchIndexService {
             PictureAssetRepository pictureAssetRepository,
             PictureTagRepository pictureTagRepository,
             PictureSearchDocumentRepository pictureSearchDocumentRepository,
-            TransactionTemplate transactionTemplate,
             MeterRegistry meterRegistry
     ) {
         this.searchIndexTaskExecutor = searchIndexTaskExecutor;
         this.pictureAssetRepository = pictureAssetRepository;
         this.pictureTagRepository = pictureTagRepository;
         this.pictureSearchDocumentRepository = pictureSearchDocumentRepository;
-        this.transactionTemplate = transactionTemplate;
         this.successCounter = meterRegistry.counter("search.index.success");
-        this.failureCounter = meterRegistry.counter("search.index.failure");
         this.enqueueCounter = meterRegistry.counter("search.index.enqueued");
     }
 
@@ -58,9 +52,7 @@ public class DatabaseSearchIndexService implements SearchIndexService {
             return;
         }
         enqueueCounter.increment();
-        searchIndexTaskExecutor.execute(() -> {
-            indexWithRetry(pictureId, 3);
-        });
+        searchIndexTaskExecutor.execute(() -> indexWithRetry(pictureId));
     }
 
     private void indexPicture(UUID pictureId) {
@@ -79,29 +71,8 @@ public class DatabaseSearchIndexService implements SearchIndexService {
         successCounter.increment();
     }
 
-    private void indexWithRetry(UUID pictureId, int maxAttempts) {
-        for (int attempt = 1; attempt <= maxAttempts; attempt++) {
-            try {
-                transactionTemplate.executeWithoutResult(status -> {
-                    indexPicture(pictureId);
-                });
-                return;
-            } catch (Exception ex) {
-                if (attempt == maxAttempts) {
-                    failureCounter.increment();
-                    log.warn("Search index failed after {} attempts for picture {}", attempt, pictureId, ex);
-                    return;
-                }
-                try {
-                    Thread.sleep(200L * attempt);
-                } catch (InterruptedException ie) {
-                    Thread.currentThread().interrupt();
-                    failureCounter.increment();
-                    log.warn("Search index interrupted for picture {}", pictureId, ie);
-                    return;
-                }
-            }
-        }
+    private void indexWithRetry(UUID pictureId) {
+        indexPicture(pictureId);
     }
 
     private String buildContent(PictureAsset asset, List<PictureTag> tags) {

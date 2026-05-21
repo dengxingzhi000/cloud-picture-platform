@@ -9,12 +9,12 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import com.cn.cloudpictureplatform.application.album.AlbumService;
 import com.cn.cloudpictureplatform.common.exception.ApiException;
 import com.cn.cloudpictureplatform.common.web.ApiErrorCode;
 import com.cn.cloudpictureplatform.common.web.ApiResponse;
 import com.cn.cloudpictureplatform.domain.picture.PictureAsset;
 import com.cn.cloudpictureplatform.domain.picture.PictureTag;
-import com.cn.cloudpictureplatform.domain.picture.Visibility;
 import com.cn.cloudpictureplatform.infrastructure.persistence.PictureAssetRepository;
 import com.cn.cloudpictureplatform.infrastructure.persistence.PictureTagRepository;
 import com.cn.cloudpictureplatform.infrastructure.security.AppUserPrincipal;
@@ -25,13 +25,16 @@ import com.cn.cloudpictureplatform.interfaces.picture.dto.BatchOperationRequest;
 public class BatchPictureController {
     private final PictureAssetRepository pictureAssetRepository;
     private final PictureTagRepository pictureTagRepository;
+    private final AlbumService albumService;
 
     public BatchPictureController(
             PictureAssetRepository pictureAssetRepository,
-            PictureTagRepository pictureTagRepository
+            PictureTagRepository pictureTagRepository,
+            AlbumService albumService
     ) {
         this.pictureAssetRepository = pictureAssetRepository;
         this.pictureTagRepository = pictureTagRepository;
+        this.albumService = albumService;
     }
 
     @PostMapping("/delete")
@@ -84,6 +87,21 @@ public class BatchPictureController {
                 }
             }
         }
+        return ApiResponse.ok(assets.size());
+    }
+
+    @PostMapping("/move")
+    @Transactional
+    public ApiResponse<Integer> batchMove(
+            @Valid @RequestBody BatchOperationRequest request,
+            @AuthenticationPrincipal AppUserPrincipal principal
+    ) {
+        if (request.getTargetAlbumId() == null) {
+            throw new ApiException(ApiErrorCode.BAD_REQUEST, "targetAlbumId is required");
+        }
+        List<PictureAsset> assets = findAuthorizedAssets(request.getPictureIds(), principal.getId());
+        albumService.addPictures(request.getTargetAlbumId(),
+                assets.stream().map(PictureAsset::getId).toList());
         return ApiResponse.ok(assets.size());
     }
 

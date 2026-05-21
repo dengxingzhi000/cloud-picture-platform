@@ -18,6 +18,7 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.stereotype.Component;
 import com.cn.cloudpictureplatform.application.collaboration.PictureCollabAccessService;
+import lombok.NonNull;
 
 @Component
 public class WebSocketAuthChannelInterceptor implements ChannelInterceptor {
@@ -42,7 +43,7 @@ public class WebSocketAuthChannelInterceptor implements ChannelInterceptor {
     }
 
     @Override
-    public Message<?> preSend(Message<?> message, MessageChannel channel) {
+    public Message<?> preSend(@NonNull Message<?> message, @NonNull MessageChannel channel) {
         StompHeaderAccessor accessor =
                 MessageHeaderAccessor.getAccessor(message, StompHeaderAccessor.class);
 
@@ -151,16 +152,12 @@ public class WebSocketAuthChannelInterceptor implements ChannelInterceptor {
             return null;
         }
         Object value = sessionAttributes.get(key);
-        if (value == null) {
-            return null;
-        }
-        if (value instanceof Set<?> set) {
-            return (T) set;
-        }
-        if (value instanceof List<?> list) {
-            return (T) new HashSet<>((List<String>) list);
-        }
-        return (T) value;
+        return switch (value) {
+            case null -> null;
+            case Set<?> set -> (T) set;
+            case List<?> list -> (T) new HashSet<>((List<String>) list);
+            default -> (T) value;
+        };
     }
 
     private static UUID extractUserId(StompHeaderAccessor accessor) {

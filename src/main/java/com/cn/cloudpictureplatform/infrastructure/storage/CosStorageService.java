@@ -1,5 +1,6 @@
 package com.cn.cloudpictureplatform.infrastructure.storage;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Paths;
@@ -17,6 +18,7 @@ import com.qcloud.cos.COSClient;
 import com.qcloud.cos.ClientConfig;
 import com.qcloud.cos.auth.BasicCOSCredentials;
 import com.qcloud.cos.auth.COSCredentials;
+import com.qcloud.cos.model.COSObject;
 import com.qcloud.cos.model.ObjectMetadata;
 import com.qcloud.cos.model.PutObjectRequest;
 import com.qcloud.cos.region.Region;
@@ -64,6 +66,39 @@ public class CosStorageService implements StorageService {
                 ? baseUrl + "/" + objectKey
                 : cosClient.getObjectUrl(bucket, objectKey).toString();
         return new StorageResult(objectKey, url, file.getSize(), file.getContentType());
+    }
+
+    @Override
+    public StorageResult store(byte[] data, String key, String contentType) {
+        String safeKey = sanitizeKey(key);
+        String objectKey = prefix + safeKey;
+        ObjectMetadata metadata = new ObjectMetadata();
+        metadata.setContentLength(data.length);
+        if (StringUtils.hasText(contentType)) {
+            metadata.setContentType(contentType);
+        }
+        try (ByteArrayInputStream inputStream = new ByteArrayInputStream(data)) {
+            PutObjectRequest request = new PutObjectRequest(bucket, objectKey, inputStream, metadata);
+            cosClient.putObject(request);
+        } catch (IOException ex) {
+            throw new ApiException(ApiErrorCode.SERVER_ERROR, "failed to upload to cos");
+        }
+        String url = StringUtils.hasText(baseUrl)
+                ? baseUrl + "/" + objectKey
+                : cosClient.getObjectUrl(bucket, objectKey).toString();
+        return new StorageResult(objectKey, url, data.length, contentType);
+    }
+
+    @Override
+    public InputStream retrieve(String key) {
+        String safeKey = sanitizeKey(key);
+        String objectKey = safeKey.startsWith(prefix) ? safeKey : prefix + safeKey;
+        try {
+            COSObject cosObject = cosClient.getObject(bucket, objectKey);
+            return cosObject.getObjectContent();
+        } catch (Exception ex) {
+            throw new ApiException(ApiErrorCode.NOT_FOUND, "file not found in COS: " + key);
+        }
     }
 
     @Override

@@ -57,7 +57,7 @@ public class TagService {
     @Cacheable(cacheNames = "tagCatalog", key = "T(java.util.Arrays).asList(#page,#size,#keyword)")
     public PageResponse<TagResponse> listTags(int page, int size, String keyword) {
         int pageIndex = Math.max(0, page);
-        int pageSize = Math.min(Math.max(1, size), 100);
+        int pageSize = Math.clamp(size, 1, 100);
         var pageable = PageRequest.of(pageIndex, pageSize, Sort.by("name").ascending());
         var result = StringUtils.hasText(keyword)
                 ? tagRepository.findByNameContainingIgnoreCase(keyword.trim(), pageable)

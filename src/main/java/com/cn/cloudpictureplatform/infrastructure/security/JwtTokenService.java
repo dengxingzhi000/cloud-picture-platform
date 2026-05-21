@@ -5,7 +5,6 @@ import java.time.Instant;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
-import java.util.Set;
 import javax.crypto.SecretKey;
 
 import io.jsonwebtoken.Claims;

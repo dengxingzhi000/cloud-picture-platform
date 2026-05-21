@@ -9,7 +9,6 @@ import com.cn.cloudpictureplatform.websocket.dto.EditorCursorPayload;
 import com.cn.cloudpictureplatform.websocket.dto.EditorSelectionPayload;
 import com.cn.cloudpictureplatform.websocket.dto.PictureDocumentOperationPayload;
 
-import java.time.Duration;
 import java.time.Instant;
 import java.util.LinkedHashSet;
 import java.util.List;

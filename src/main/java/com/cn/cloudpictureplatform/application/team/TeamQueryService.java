@@ -126,7 +126,7 @@ public class TeamQueryService {
     ) {
         requireAdminMember(teamId, requesterId);
         int pageIndex = Math.max(0, page);
-        int pageSize = Math.min(Math.max(1, size), 100);
+        int pageSize = Math.clamp(size, 1, 100);
         Sort sort = resolveHistorySort(sortBy, sortDir);
         var pageable = PageRequest.of(pageIndex, pageSize, sort);
         Specification<TeamMember> spec = buildInviteHistorySpec(
@@ -187,7 +187,7 @@ public class TeamQueryService {
             String sortBy, String sortDir, int limit
     ) {
         requireAdminMember(teamId, requesterId);
-        int pageSize = Math.min(Math.max(1, limit), 10000);
+        int pageSize = Math.clamp(limit, 1, 10000);
         var result = findMemberEventPage(teamId, 0, pageSize, 10000,
                 type, userId, actorId, createdAfter, createdBefore, sortBy, sortDir);
         return toEventResponses(result.getContent());
@@ -228,7 +228,7 @@ public class TeamQueryService {
             String sortBy, String sortDir
     ) {
         int pageIndex = Math.max(0, page);
-        int pageSize = Math.min(Math.max(1, size), maxSize);
+        int pageSize = Math.clamp(size, 1, maxSize);
         Sort sort = resolveEventSort(sortBy, sortDir);
         var pageable = PageRequest.of(pageIndex, pageSize, sort);
         Specification<TeamMemberEvent> spec = buildMemberEventSpec(

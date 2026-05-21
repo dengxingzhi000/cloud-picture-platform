@@ -48,7 +48,7 @@ public class TeamActivityService {
 
     public PageResponse<TeamActivityResponse> listActivities(UUID teamId, int page, int size) {
         int pageIndex = Math.max(0, page);
-        int pageSize = Math.min(Math.max(1, size), 100);
+        int pageSize = Math.clamp(size, 1, 100);
         var pageable = PageRequest.of(pageIndex, pageSize);
         var result = teamActivityRepository.findByTeamIdOrderByCreatedAtDesc(teamId, pageable);
         var actorIds = result.getContent().stream()

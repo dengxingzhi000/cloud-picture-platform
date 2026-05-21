@@ -53,7 +53,7 @@ public class DeveloperController {
         return ApiResponse.ok(null);
     }
 
-    private record CreateKeyRequest(
+    public record CreateKeyRequest(
             String name, List<String> scopes, Integer rateLimit, Instant expiresAt
     ) {}
 }

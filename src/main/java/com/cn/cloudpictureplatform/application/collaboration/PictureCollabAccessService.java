@@ -15,7 +15,6 @@ import com.cn.cloudpictureplatform.infrastructure.persistence.TeamMemberReposito
 
 @Service
 public class PictureCollabAccessService {
-
     private final PictureAssetRepository pictureAssetRepository;
     private final SpaceRepository spaceRepository;
     private final TeamMemberRepository teamMemberRepository;

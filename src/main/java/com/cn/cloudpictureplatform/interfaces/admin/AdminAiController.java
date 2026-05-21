@@ -8,6 +8,7 @@ import com.cn.cloudpictureplatform.common.web.ApiResponse;
 import com.cn.cloudpictureplatform.infrastructure.persistence.AiCallAuditRepository;
 import com.cn.cloudpictureplatform.infrastructure.persistence.AiModerationRecordRepository;
 import com.cn.cloudpictureplatform.infrastructure.persistence.PictureAssetRepository;
+import com.cn.cloudpictureplatform.domain.ai.AiCallAudit;
 import com.cn.cloudpictureplatform.domain.picture.ReviewStatus;
 import com.cn.cloudpictureplatform.interfaces.admin.dto.AiStatsResponse;
 
@@ -45,7 +46,7 @@ public class AdminAiController {
         return ApiResponse.ok(AiStatsResponse.builder()
                 .tagging(AiStatsResponse.TaggingStats.builder()
                         .totalCalls(taggingAudits.size())
-                        .successCalls(taggingAudits.stream().filter(a -> a.isSuccess()).count())
+                        .successCalls(taggingAudits.stream().filter(AiCallAudit::isSuccess).count())
                         .avgLatencyMs(taggingAudits.stream()
                                 .mapToInt(a -> a.getLatencyMs() != null ? a.getLatencyMs() : 0)
                                 .average().orElse(0.0))

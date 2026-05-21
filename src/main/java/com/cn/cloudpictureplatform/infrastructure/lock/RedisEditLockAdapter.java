@@ -2,22 +2,22 @@ package com.cn.cloudpictureplatform.infrastructure.lock;
 
 import java.time.Duration;
 import java.time.Instant;
-import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.Set;
 import java.util.UUID;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
+import org.springframework.context.annotation.Primary;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import com.cn.cloudpictureplatform.websocket.EditLockPort;
 import com.cn.cloudpictureplatform.websocket.dto.PresenceSnapshot;
-import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @Service
+@Primary
 @ConditionalOnBean(StringRedisTemplate.class)
 public class RedisEditLockAdapter implements EditLockPort {
     static final long LOCK_TTL_SECONDS = 300;
@@ -25,17 +25,14 @@ public class RedisEditLockAdapter implements EditLockPort {
     private static final Duration LOCK_TTL = Duration.ofSeconds(LOCK_TTL_SECONDS);
 
     private final StringRedisTemplate redisTemplate;
-    private DefaultRedisScript<Boolean> compareAndDeleteScript;
-    private DefaultRedisScript<Boolean> compareAndRefreshScript;
 
     public RedisEditLockAdapter(StringRedisTemplate redisTemplate) {
         this.redisTemplate = redisTemplate;
     }
 
-    @PostConstruct
-    void initScripts() {
-        compareAndDeleteScript = new DefaultRedisScript<>();
-        compareAndDeleteScript.setScriptText(
+    private DefaultRedisScript<Boolean> createCompareAndDeleteScript() {
+        DefaultRedisScript<Boolean> script = new DefaultRedisScript<>();
+        script.setScriptText(
                 "local val = redis.call('GET', KEYS[1]) " +
                 "if val == ARGV[1] then " +
                 "  return redis.call('DEL', KEYS[1]) " +
@@ -43,10 +40,13 @@ public class RedisEditLockAdapter implements EditLockPort {
                 "  return 0 " +
                 "end"
         );
-        compareAndDeleteScript.setResultType(Boolean.class);
+        script.setResultType(Boolean.class);
+        return script;
+    }
 
-        compareAndRefreshScript = new DefaultRedisScript<>();
-        compareAndRefreshScript.setScriptText(
+    private DefaultRedisScript<Boolean> createCompareAndRefreshScript() {
+        DefaultRedisScript<Boolean> script = new DefaultRedisScript<>();
+        script.setScriptText(
                 "local val = redis.call('GET', KEYS[1]) " +
                 "if val ~= nil and val ~= '' then " +
                 "  local fields = redis.call('JSON.OBJKEYS', KEYS[1]) " +
@@ -54,7 +54,8 @@ public class RedisEditLockAdapter implements EditLockPort {
                 "end " +
                 "return 0"
         );
-        compareAndRefreshScript.setResultType(Boolean.class);
+        script.setResultType(Boolean.class);
+        return script;
     }
 
     private String lockKey(UUID pictureId) {

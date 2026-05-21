@@ -22,7 +22,6 @@ import org.springframework.util.StringUtils;
  */
 @Service
 public class PictureCollaborationRoomService {
-
     private static final String ROOM_CONTRACT_VERSION = "picture-collab-room.v1";
 
     private final CollaborationProperties collaborationProperties;

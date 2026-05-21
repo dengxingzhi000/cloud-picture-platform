@@ -44,6 +44,7 @@ import com.cn.cloudpictureplatform.infrastructure.persistence.TeamRepository;
 import com.cn.cloudpictureplatform.application.shared.dto.PictureDetailResponse;
 import com.cn.cloudpictureplatform.application.shared.dto.PictureSummary;
 import com.cn.cloudpictureplatform.application.shared.dto.PictureTagResponse;
+import com.cn.cloudpictureplatform.common.web.PageRequestFactory;
 
 @Service
 @Transactional(readOnly = true)
@@ -150,13 +151,8 @@ public class PictureQueryService {
             Long maxSizeBytes,
             String orientation
     ) {
-        int pageIndex = Math.max(0, page);
-        int pageSize = Math.min(Math.max(1, size), 100);
+        var pageable = PageRequestFactory.ofDescending(page, size, "createdAt");
         String normalizedKeyword = normalizeKeyword(keyword);
-        Sort sort = resolveKeywordAwareSort(normalizedKeyword, null, null);
-        var pageable = sort.isSorted()
-                ? PageRequest.of(pageIndex, pageSize, sort)
-                : PageRequest.of(pageIndex, pageSize);
         Specification<PictureAsset> spec = (root, query, builder) -> {
             List<Predicate> predicates = new ArrayList<>();
             predicates.add(builder.equal(root.get("visibility"), Visibility.PUBLIC));
@@ -200,14 +196,14 @@ public class PictureQueryService {
                         asset.getHeight()
                 ))
                 .toList();
-        return new PageResponse<>(items, result.getTotalElements(), pageIndex, pageSize);
+        return new PageResponse<>(items, result.getTotalElements(), pageable.getPageNumber(), pageable.getPageSize());
     }
 
     @Cacheable(cacheNames = "pictureRecommendations",
             key = "{ 'v1', #page, #size, #requesterId }")
     public PageResponse<PictureSummary> recommendPublic(int page, int size, UUID requesterId) {
         int pageIndex = Math.max(0, page);
-        int pageSize = Math.min(Math.max(1, size), 100);
+        int pageSize = Math.clamp(size, 1, 100);
 
         LinkedHashMap<String, Integer> interestTagWeights = resolveInterestTagWeights(requesterId);
 
@@ -274,7 +270,7 @@ public class PictureQueryService {
             String sortBy, String sortDir, UUID requesterId, Set<String> requesterRoles
     ) {
         int pageIndex = Math.max(0, page);
-        int pageSize = Math.min(Math.max(1, size), 100);
+        int pageSize = Math.clamp(size, 1, 100);
         String normalizedKeyword = normalizeKeyword(keyword);
         Sort sort = resolveKeywordAwareSort(normalizedKeyword, sortBy, sortDir);
         var pageable = PageRequest.of(pageIndex, pageSize, sort);
@@ -446,8 +442,7 @@ public class PictureQueryService {
         if (isAdmin) return true;
         if (requesterId != null && requesterId.equals(asset.getOwnerId())) return true;
         if (asset.getVisibility() == Visibility.PUBLIC && asset.getReviewStatus() == ReviewStatus.APPROVED) return true;
-        if (space.getType() == SpaceType.TEAM && activeTeamMember != null && asset.getVisibility() != Visibility.PRIVATE) return true;
-        return false;
+        return space.getType() == SpaceType.TEAM && activeTeamMember != null && asset.getVisibility() != Visibility.PRIVATE;
     }
 
     private Subquery<UUID> buildSearchSubquery(

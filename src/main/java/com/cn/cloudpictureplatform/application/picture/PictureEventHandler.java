@@ -11,6 +11,7 @@ import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 import org.springframework.util.StringUtils;
 import com.cn.cloudpictureplatform.application.outbox.OutboxService;
+import com.cn.cloudpictureplatform.domain.events.PictureUploadedEvent;
 import com.cn.cloudpictureplatform.domain.team.TeamMember;
 import com.cn.cloudpictureplatform.domain.team.TeamMemberStatus;
 import com.cn.cloudpictureplatform.domain.user.AppUser;

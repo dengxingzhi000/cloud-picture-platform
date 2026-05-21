@@ -81,7 +81,7 @@ public class AlbumService {
 
     @Transactional
     public void addPictures(UUID albumId, List<UUID> pictureIds) {
-        Album album = albumRepository.findById(albumId)
+        albumRepository.findById(albumId)
                 .orElseThrow(() -> new ApiException(ApiErrorCode.NOT_FOUND, "album not found"));
         int nextOrder = albumPictureRepository.countByAlbumId(albumId);
         for (UUID pictureId : pictureIds) {

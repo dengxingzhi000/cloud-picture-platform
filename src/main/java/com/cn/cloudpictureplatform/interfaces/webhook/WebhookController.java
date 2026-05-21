@@ -30,7 +30,7 @@ public class WebhookController {
 
     @PostMapping
     public ApiResponse<WebhookEndpoint> register(
-            @RequestBody RegisterWebhookRequest request,
+            @RequestBody WebhookCreateRequest request,
             @AuthenticationPrincipal AppUserPrincipal principal
     ) {
         return ApiResponse.ok(webhookService.registerEndpoint(
@@ -67,7 +67,7 @@ public class WebhookController {
         return ApiResponse.ok(webhookService.getDeliveries(id, page, size));
     }
 
-    private record RegisterWebhookRequest(
+    public record WebhookCreateRequest(
             String url, String secret, List<String> events
     ) {}
 }

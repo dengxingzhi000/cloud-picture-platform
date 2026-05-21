@@ -13,7 +13,6 @@ import jakarta.persistence.criteria.Predicate;
 
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
@@ -32,15 +31,14 @@ import com.cn.cloudpictureplatform.infrastructure.persistence.AiModerationRecord
 import com.cn.cloudpictureplatform.infrastructure.persistence.AppUserRepository;
 import com.cn.cloudpictureplatform.infrastructure.persistence.ModerationRecordRepository;
 import com.cn.cloudpictureplatform.infrastructure.persistence.PictureAssetRepository;
-import com.cn.cloudpictureplatform.infrastructure.persistence.SpaceRepository;
 import com.cn.cloudpictureplatform.application.shared.dto.AdminPictureSummary;
 import com.cn.cloudpictureplatform.application.shared.dto.ModerationRecordResponse;
 import com.cn.cloudpictureplatform.application.shared.dto.PictureResponse;
+import com.cn.cloudpictureplatform.common.web.PageRequestFactory;
 
 @Service
 @Transactional(readOnly = true)
 public class ModerationService {
-
     private final PictureAssetRepository pictureAssetRepository;
     private final ModerationRecordRepository moderationRecordRepository;
     private final AiModerationRecordRepository aiModerationRecordRepository;
@@ -102,7 +100,7 @@ public class ModerationService {
     }
 
     @Transactional
-    public PictureResponse autoApprove(UUID pictureId, String provider) {
+    public void autoApprove(UUID pictureId, String provider) {
         PictureAsset asset = pictureAssetRepository.findById(pictureId)
                 .orElseThrow(() -> new ApiException(ApiErrorCode.NOT_FOUND, "picture not found"));
         asset.setReviewStatus(ReviewStatus.AUTO_APPROVED);
@@ -110,11 +108,10 @@ public class ModerationService {
         searchIndexService.enqueuePicture(pictureId);
         eventPublisher.publishEvent(new PictureReviewedEvent(
                 pictureId, asset.getName(), asset.getOwnerId(), true, "auto-approved by " + provider));
-        return toResponse(asset);
     }
 
     @Transactional
-    public PictureResponse autoReject(UUID pictureId, String reason, String provider) {
+    public void autoReject(UUID pictureId, String reason, String provider) {
         PictureAsset asset = pictureAssetRepository.findById(pictureId)
                 .orElseThrow(() -> new ApiException(ApiErrorCode.NOT_FOUND, "picture not found"));
         asset.setReviewStatus(ReviewStatus.AUTO_REJECTED);
@@ -122,7 +119,6 @@ public class ModerationService {
         searchIndexService.enqueuePicture(pictureId);
         eventPublisher.publishEvent(new PictureReviewedEvent(
                 pictureId, asset.getName(), asset.getOwnerId(), false, reason));
-        return toResponse(asset);
     }
 
     @Transactional
@@ -140,9 +136,7 @@ public class ModerationService {
 
     @Cacheable(cacheNames = "adminPending", key = "{ 'v1', #page, #size }")
     public PageResponse<AdminPictureSummary> listPending(int page, int size) {
-        int pageIndex = Math.max(0, page);
-        int pageSize = Math.min(Math.max(1, size), 100);
-        var pageable = PageRequest.of(pageIndex, pageSize, Sort.by("createdAt").descending());
+        var pageable = PageRequestFactory.ofDescending(page, size, "createdAt");
         var result = pictureAssetRepository.findByReviewStatus(ReviewStatus.PENDING, pageable);
         List<PictureAsset> assets = result.getContent();
         List<UUID> ownerIds = assets.stream().map(PictureAsset::getOwnerId).distinct().toList();
@@ -176,7 +170,7 @@ public class ModerationService {
                             .build();
                 })
                 .toList();
-        return new PageResponse<>(items, result.getTotalElements(), pageIndex, pageSize);
+        return new PageResponse<>(items, result.getTotalElements(), pageable.getPageNumber(), pageable.getPageSize());
     }
 
     public AdminPictureSummary getAdminPicture(UUID pictureId) {
@@ -213,22 +207,21 @@ public class ModerationService {
             Instant reviewedAfter, Instant reviewedBefore, String sortBy, String sortDir
     ) {
         int pageIndex = Math.max(0, page);
-        int pageSize = Math.min(Math.max(1, size), 100);
+        int pageSize = Math.clamp(size, 1, 100);
         Sort sort = resolveSort(sortBy, sortDir);
-        var pageable = PageRequest.of(pageIndex, pageSize, sort);
+        var pageable = PageRequestFactory.of(pageIndex, pageSize, sort);
         Specification<ModerationRecord> spec = buildModerationSpec(pictureId, reviewerId, fromStatus, toStatus, reviewedAfter, reviewedBefore);
         var result = moderationRecordRepository.findAll(spec, pageable);
         List<ModerationRecordResponse> items = toModerationResponses(result.getContent());
-        return new PageResponse<>(items, result.getTotalElements(), pageIndex, pageSize);
+        return new PageResponse<>(items, result.getTotalElements(), pageable.getPageNumber(), pageable.getPageSize());
     }
 
     public List<ModerationRecordResponse> exportModerationHistory(
             UUID pictureId, UUID reviewerId, ReviewStatus fromStatus, ReviewStatus toStatus,
             Instant reviewedAfter, Instant reviewedBefore, String sortBy, String sortDir, int limit
     ) {
-        int pageSize = Math.min(Math.max(1, limit), 10000);
         Sort sort = resolveSort(sortBy, sortDir);
-        var pageable = PageRequest.of(0, pageSize, sort);
+        var pageable = PageRequestFactory.forExport(0, Math.clamp(limit, 1, 10000));
         Specification<ModerationRecord> spec = buildModerationSpec(pictureId, reviewerId, fromStatus, toStatus, reviewedAfter, reviewedBefore);
         var result = moderationRecordRepository.findAll(spec, pageable);
         return toModerationResponses(result.getContent());

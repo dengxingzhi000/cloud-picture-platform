@@ -14,6 +14,7 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.NonNull;
 
 public class ApiKeyAuthFilter extends OncePerRequestFilter {
     private final ApiKeyService apiKeyService;
@@ -25,8 +26,9 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
     }
 
     @Override
-    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
-                                    FilterChain filterChain) throws ServletException, IOException {
+    protected void doFilterInternal(HttpServletRequest request,
+                                    @NonNull HttpServletResponse response,
+                                    @NonNull FilterChain filterChain) throws ServletException, IOException {
         String apiKey = request.getHeader("X-API-Key");
         if (apiKey == null) {
             filterChain.doFilter(request, response);
@@ -78,17 +80,19 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
         String method = request.getMethod();
         String path = request.getRequestURI();
         if (path.startsWith("/api/pictures") || path.startsWith("/api/albums")) {
-            return switch (method) {
-                case "GET" -> "picture:read";
-                case "POST", "PATCH", "PUT", "DELETE" -> "picture:write";
-                default -> null;
-            };
+            if ("GET".equals(method)) {
+                return "picture:read";
+            }
+            if ("POST".equals(method) || "PATCH".equals(method) || "PUT".equals(method) || "DELETE".equals(method)) {
+                return "picture:write";
+            }
+            return null;
         }
         if (path.startsWith("/api/teams")) {
-            return switch (method) {
-                case "GET" -> "team:read";
-                default -> "team:write";
-            };
+            if ("GET".equals(method)) {
+                return "team:read";
+            }
+            return "team:write";
         }
         return null;
     }

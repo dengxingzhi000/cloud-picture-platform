@@ -8,7 +8,6 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
-import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 import com.cn.cloudpictureplatform.websocket.dto.PresenceSnapshot;
 
@@ -19,7 +18,6 @@ import com.cn.cloudpictureplatform.websocket.dto.PresenceSnapshot;
  * For production multi-instance deployments, use {@link RedisEditLockAdapter}.
  */
 @Service
-@Profile({"dev", "test"})
 public class EditLockService implements EditLockPort {
     static final long LOCK_TTL_SECONDS = 300; // 5 minutes
 

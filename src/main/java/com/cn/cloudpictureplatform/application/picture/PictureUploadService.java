@@ -14,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 import com.cn.cloudpictureplatform.common.exception.ApiException;
+import com.cn.cloudpictureplatform.domain.events.PictureUploadedEvent;
 import com.cn.cloudpictureplatform.common.web.ApiErrorCode;
 import com.cn.cloudpictureplatform.application.shared.dto.PictureResponse;
 import com.cn.cloudpictureplatform.application.space.SpacePermissionValidator;

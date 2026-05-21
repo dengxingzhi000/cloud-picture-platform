@@ -1,6 +1,5 @@
 package com.cn.cloudpictureplatform.application.search;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -12,11 +11,14 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import com.cn.cloudpictureplatform.application.shared.dto.PictureSummary;
 import com.cn.cloudpictureplatform.common.web.PageResponse;
+import com.cn.cloudpictureplatform.domain.search.PictureSearchDocument;
 import com.cn.cloudpictureplatform.infrastructure.ai.gateway.AiGateway;
 import com.cn.cloudpictureplatform.infrastructure.persistence.PictureSearchDocumentRepository;
 
 @Service
 public class HybridSearchService {
+    private static final int RRF_K = 60;
+    
     private final AiGateway aiGateway;
     private final PictureSearchDocumentRepository searchDocumentRepository;
 
@@ -32,13 +34,13 @@ public class HybridSearchService {
         if (!StringUtils.hasText(query)) {
             return new PageResponse<>(List.of(), 0, page, size);
         }
-        int pageSize = Math.min(Math.max(1, size), 100);
+        int pageSize = Math.clamp(size, 1, 100);
         int fetchK = (page + 1) * pageSize * 2;
 
         List<UUID> semanticIds = searchSemantic(query, fetchK);
         List<UUID> keywordIds = searchKeyword(query, fetchK);
 
-        List<UUID> merged = reciprocalRankFusion(semanticIds, keywordIds, 60);
+        List<UUID> merged = reciprocalRankFusion(semanticIds, keywordIds);
         int total = merged.size();
         int start = page * pageSize;
         int end = Math.min(start + pageSize, merged.size());
@@ -66,17 +68,17 @@ public class HybridSearchService {
         var pageable = PageRequest.of(0, limit);
         return searchDocumentRepository.findByContentContainingIgnoreCase(query, pageable)
                 .stream()
-                .map(doc -> doc.getPictureId())
+                .map(PictureSearchDocument::getPictureId)
                 .toList();
     }
 
-    static List<UUID> reciprocalRankFusion(List<UUID> listA, List<UUID> listB, int k) {
+    static List<UUID> reciprocalRankFusion(List<UUID> listA, List<UUID> listB) {
         Map<UUID, Double> scores = new HashMap<>();
         for (int i = 0; i < listA.size(); i++) {
-            scores.merge(listA.get(i), 1.0 / (k + i + 1), Double::sum);
+            scores.merge(listA.get(i), 1.0 / (RRF_K + i + 1), Double::sum);
         }
         for (int i = 0; i < listB.size(); i++) {
-            scores.merge(listB.get(i), 1.0 / (k + i + 1), Double::sum);
+            scores.merge(listB.get(i), 1.0 / (RRF_K + i + 1), Double::sum);
         }
         return scores.entrySet().stream()
                 .sorted(Map.Entry.<UUID, Double>comparingByValue().reversed())

@@ -15,8 +15,6 @@ import javax.crypto.spec.SecretKeySpec;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import com.cn.cloudpictureplatform.common.exception.ApiException;
-import com.cn.cloudpictureplatform.common.web.ApiErrorCode;
 import com.cn.cloudpictureplatform.common.web.PageResponse;
 import com.cn.cloudpictureplatform.domain.webhook.WebhookDelivery;
 import com.cn.cloudpictureplatform.domain.webhook.WebhookEndpoint;
@@ -66,7 +64,7 @@ public class WebhookService {
 
     public PageResponse<WebhookDelivery> getDeliveries(UUID webhookId, int page, int size) {
         int pageIndex = Math.max(0, page);
-        int pageSize = Math.min(Math.max(1, size), 50);
+        int pageSize = Math.clamp(size, 1, 50);
         var pageable = PageRequest.of(pageIndex, pageSize);
         var result = webhookDeliveryRepository.findByWebhookIdOrderByCreatedAtDesc(webhookId, pageable);
         return new PageResponse<>(result.getContent(), result.getTotalElements(), result.getNumber(), result.getSize());

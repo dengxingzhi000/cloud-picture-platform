@@ -41,7 +41,6 @@ import com.cn.cloudpictureplatform.application.shared.dto.PictureCollaborationRo
 import com.cn.cloudpictureplatform.application.shared.dto.PictureTagResponse;
 import com.cn.cloudpictureplatform.application.shared.dto.PictureResponse;
 import com.cn.cloudpictureplatform.application.shared.dto.PictureSummary;
-import com.cn.cloudpictureplatform.application.picture.PictureCollaborationRoomService;
 import com.cn.cloudpictureplatform.websocket.EditLockPort;
 import com.cn.cloudpictureplatform.application.collaboration.PictureCollabAccessService;
 import com.cn.cloudpictureplatform.websocket.PictureCollabController;

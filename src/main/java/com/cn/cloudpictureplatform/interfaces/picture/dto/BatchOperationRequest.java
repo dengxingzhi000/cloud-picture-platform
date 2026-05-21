@@ -16,6 +16,7 @@ public class BatchOperationRequest {
     private List<UUID> pictureIds;
 
     private UUID targetSpaceId;
+    private UUID targetAlbumId;
     private Visibility visibility;
     private List<String> tagTexts;
 }

@@ -8,13 +8,11 @@ import java.time.Duration;
 import java.util.Optional;
 import java.util.UUID;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
-import io.github.resilience4j.timelimiter.annotation.TimeLimiter;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 import com.cn.cloudpictureplatform.infrastructure.ai.dto.AiChatRequest;
 import com.cn.cloudpictureplatform.infrastructure.ai.dto.AiChatResponse;
 import com.cn.cloudpictureplatform.infrastructure.persistence.AiCallAuditRepository;
-import com.cn.cloudpictureplatform.infrastructure.persistence.AiTaskRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 
@@ -24,7 +22,6 @@ import lombok.extern.slf4j.Slf4j;
 public class AiGatewayImpl implements AiGateway {
     private final HttpClient httpClient;
     private final AiCallAuditRepository auditRepository;
-    private final AiTaskRepository aiTaskRepository;
     private final ObjectMapper objectMapper;
     private final String baseUrl;
     private final int embeddingTimeout;
@@ -33,11 +30,9 @@ public class AiGatewayImpl implements AiGateway {
     public AiGatewayImpl(
             AiProperties properties,
             AiCallAuditRepository auditRepository,
-            AiTaskRepository aiTaskRepository,
             ObjectMapper objectMapper
     ) {
         this.auditRepository = auditRepository;
-        this.aiTaskRepository = aiTaskRepository;
         this.objectMapper = objectMapper;
         this.baseUrl = properties.getGateway().getBaseUrl();
         this.embeddingTimeout = properties.getGateway().getTimeoutMs().getEmbedding();
@@ -81,7 +76,7 @@ public class AiGatewayImpl implements AiGateway {
             HttpRequest req = HttpRequest.newBuilder()
                     .uri(URI.create(baseUrl + "/api/v1/embedding/image"))
                     .header("Content-Type", "application/json")
-                    .timeout(Duration.ofMillis(embeddingTimeout * 2))
+                    .timeout(Duration.ofMillis(embeddingTimeout * 2L))
                     .POST(HttpRequest.BodyPublishers.ofString(body))
                     .build();
             HttpResponse<String> resp = httpClient.send(req, HttpResponse.BodyHandlers.ofString());

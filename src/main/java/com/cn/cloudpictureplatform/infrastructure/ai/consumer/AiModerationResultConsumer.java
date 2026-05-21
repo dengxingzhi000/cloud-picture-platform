@@ -43,11 +43,13 @@ public class AiModerationResultConsumer {
             if (confidence >= 0.92 && isSafe) {
                 moderationService.autoApprove(pictureId, provider);
                 log.info("AI auto-approved: pictureId={}", pictureId);
-            } else if (confidence >= 0.95 && !isSafe) {
+            } else if (confidence >= 0.95) {
+                // At this point, isSafe must be false (handled above if true)
                 moderationService.autoReject(pictureId, "AI detected violations: " + violations, provider);
                 log.info("AI auto-rejected: pictureId={}", pictureId);
             } else {
-                log.info("AI moderation inconclusive, escalated: pictureId={}, confidence={}", pictureId, confidence);
+                log.info("AI moderation inconclusive, escalated: pictureId={}, confidence={}, isSafe={}", 
+                        pictureId, confidence, isSafe);
             }
         } catch (Exception ex) {
             log.error("Failed to process moderation result", ex);
