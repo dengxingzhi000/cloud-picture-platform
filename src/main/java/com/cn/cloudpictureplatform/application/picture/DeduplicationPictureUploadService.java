@@ -6,24 +6,19 @@ import com.cn.cloudpictureplatform.domain.picture.PictureAsset;
 import com.cn.cloudpictureplatform.domain.picture.ReviewStatus;
 import com.cn.cloudpictureplatform.domain.picture.Visibility;
 import com.cn.cloudpictureplatform.domain.space.Space;
-import com.cn.cloudpictureplatform.domain.space.SpaceType;
 import com.cn.cloudpictureplatform.domain.storage.FileContent;
 import com.cn.cloudpictureplatform.domain.storage.FileDeduplicationService;
 import com.cn.cloudpictureplatform.domain.storage.ImageHashResult;
 import com.cn.cloudpictureplatform.domain.storage.StorageResult;
 import com.cn.cloudpictureplatform.domain.storage.StorageService;
-import com.cn.cloudpictureplatform.domain.team.TeamMember;
-import com.cn.cloudpictureplatform.domain.team.TeamMemberStatus;
-import com.cn.cloudpictureplatform.domain.user.AppUser;
 import com.cn.cloudpictureplatform.application.search.SearchIndexService;
 import com.cn.cloudpictureplatform.application.space.SpacePermissionValidator;
 import com.cn.cloudpictureplatform.application.space.SpaceQuotaService;
-import com.cn.cloudpictureplatform.infrastructure.persistence.AppUserRepository;
+import com.cn.cloudpictureplatform.domain.events.DomainEventBus;
+import com.cn.cloudpictureplatform.domain.events.PictureUploadedEvent;
 import com.cn.cloudpictureplatform.infrastructure.persistence.PictureAssetRepository;
 import com.cn.cloudpictureplatform.infrastructure.persistence.SpaceRepository;
-import com.cn.cloudpictureplatform.infrastructure.persistence.TeamMemberRepository;
 import com.cn.cloudpictureplatform.application.shared.dto.PictureResponse;
-import com.cn.cloudpictureplatform.websocket.NotificationPublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
@@ -34,13 +29,8 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 /**
  * 支持去重的图片上传服务
@@ -54,13 +44,11 @@ public class DeduplicationPictureUploadService {
     private final FileDeduplicationService fileDeduplicationService;
     private final PictureAssetRepository pictureAssetRepository;
     private final SpaceRepository spaceRepository;
-    private final TeamMemberRepository teamMemberRepository;
     private final SpacePermissionValidator spacePermissionValidator;
     private final SpaceQuotaService spaceQuotaService;
-    private final AppUserRepository appUserRepository;
     private final PictureResponseConverter responseConverter;
     private final SearchIndexService searchIndexService;
-    private final NotificationPublisher notificationPublisher;
+    private final DomainEventBus domainEventBus;
 
     /**
      * 上传图片（支持去重）
@@ -203,47 +191,10 @@ public class DeduplicationPictureUploadService {
     }
 
     private void notifyUploadRelatedParties(PictureAsset asset, Space space, UUID ownerId) {
-        AppUser owner = appUserRepository.findById(ownerId).orElse(null);
-        String ownerUsername = owner == null ? null : owner.getUsername();
-        notificationPublisher.notifyUploadCompleted(ownerUsername, asset.getId(), asset.getName());
-
-        if (asset.getVisibility() == Visibility.PUBLIC) {
-            notificationPublisher.notifyAdminNewUpload(
-                    asset.getId(),
-                    asset.getName(),
-                    ownerUsername == null ? "unknown" : ownerUsername
-            );
-        }
-
-        if (space.getType() == SpaceType.TEAM && space.getTeamId() != null) {
-            List<TeamMember> members = teamMemberRepository.findByTeamIdAndStatus(
-                    space.getTeamId(),
-                    TeamMemberStatus.ACTIVE
-            );
-            List<UUID> memberUserIds = members.stream()
-                    .map(TeamMember::getUserId)
-                    .filter(userId -> !userId.equals(ownerId))
-                    .toList();
-
-            if (!memberUserIds.isEmpty()) {
-                Map<UUID, String> usernameMap = appUserRepository.findAllById(memberUserIds).stream()
-                        .filter(user -> StringUtils.hasText(user.getUsername()))
-                        .collect(Collectors.toMap(AppUser::getId, AppUser::getUsername));
-
-                Collection<String> usernames = memberUserIds.stream()
-                        .map(usernameMap::get)
-                        .filter(Objects::nonNull)
-                        .toList();
-
-                if (!usernames.isEmpty()) {
-                    notificationPublisher.notifyTeamPictureUploaded(
-                            usernames,
-                            asset.getId(),
-                            asset.getName(),
-                            ownerUsername == null ? "unknown" : ownerUsername
-                    );
-                }
-            }
-        }
+        domainEventBus.publish(new PictureUploadedEvent(
+                asset.getId(), asset.getName(), ownerId,
+                space.getId(), space.getTeamId(),
+                asset.getVisibility() == Visibility.PUBLIC
+        ));
     }
 }
