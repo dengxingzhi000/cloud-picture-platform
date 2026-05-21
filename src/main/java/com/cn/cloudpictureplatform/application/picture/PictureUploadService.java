@@ -14,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 import com.cn.cloudpictureplatform.common.exception.ApiException;
+import com.cn.cloudpictureplatform.domain.events.DomainEventBus;
 import com.cn.cloudpictureplatform.domain.events.PictureUploadedEvent;
 import com.cn.cloudpictureplatform.common.web.ApiErrorCode;
 import com.cn.cloudpictureplatform.application.shared.dto.PictureResponse;
@@ -36,7 +37,7 @@ public class PictureUploadService {
     private final SpacePermissionValidator spacePermissionValidator;
     private final SpaceQuotaService spaceQuotaService;
     private final com.cn.cloudpictureplatform.application.search.SearchIndexService searchIndexService;
-    private final org.springframework.context.ApplicationEventPublisher eventPublisher;
+    private final DomainEventBus domainEventBus;
 
     public PictureUploadService(
             StorageService storageService,
@@ -45,7 +46,7 @@ public class PictureUploadService {
             SpacePermissionValidator spacePermissionValidator,
             SpaceQuotaService spaceQuotaService,
             com.cn.cloudpictureplatform.application.search.SearchIndexService searchIndexService,
-            org.springframework.context.ApplicationEventPublisher eventPublisher
+            DomainEventBus domainEventBus
     ) {
         this.storageService = storageService;
         this.pictureAssetRepository = pictureAssetRepository;
@@ -53,7 +54,7 @@ public class PictureUploadService {
         this.spacePermissionValidator = spacePermissionValidator;
         this.spaceQuotaService = spaceQuotaService;
         this.searchIndexService = searchIndexService;
-        this.eventPublisher = eventPublisher;
+        this.domainEventBus = domainEventBus;
     }
 
     @Transactional
@@ -108,7 +109,7 @@ public class PictureUploadService {
         spaceRepository.incrementUsedBytes(space.getId(), storageResult.getSizeBytes());
 
         searchIndexService.enqueuePicture(saved.getId());
-        eventPublisher.publishEvent(new PictureUploadedEvent(
+        domainEventBus.publish(new PictureUploadedEvent(
                 saved.getId(), saved.getName(), ownerId, space.getId(),
                 space.getTeamId(), resolvedVisibility == Visibility.PUBLIC
         ));
