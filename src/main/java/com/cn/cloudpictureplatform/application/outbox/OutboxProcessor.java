@@ -1,6 +1,8 @@
 package com.cn.cloudpictureplatform.application.outbox;
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.data.domain.PageRequest;
@@ -83,8 +85,15 @@ public class OutboxProcessor {
                 notificationPublisher.notifyAdminNewUpload(pictureId, pictureName, uploaderUsername);
             }
             case "TEAM_UPLOAD" -> {
-                // team picture upload notification is sent via WebSocket subscriber
-                log.debug("Skipping TEAM_UPLOAD event {} (handled by DomainEventSubscriber)", event.getId());
+                Collection<String> usernames = new ArrayList<>();
+                JsonNode usernamesNode = payload.path("usernames");
+                if (usernamesNode.isArray()) {
+                    for (JsonNode node : usernamesNode) {
+                        usernames.add(node.asText());
+                    }
+                }
+                String uploaderUsername = payload.path("uploaderUsername").asText("unknown");
+                notificationPublisher.notifyTeamPictureUploaded(usernames, pictureId, pictureName, uploaderUsername);
             }
             default -> log.warn("Unknown picture event type: {}", event.getEventType());
         }

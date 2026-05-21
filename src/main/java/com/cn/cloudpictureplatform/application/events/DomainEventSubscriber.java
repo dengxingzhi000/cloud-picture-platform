@@ -2,6 +2,7 @@ package com.cn.cloudpictureplatform.application.events;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -81,22 +82,32 @@ public class DomainEventSubscriber {
         }
 
         if (event.teamId() != null) {
-            Collection<String> usernames = teamMemberRepository
+            List<UUID> memberUserIds = teamMemberRepository
                     .findByTeamIdAndStatus(event.teamId(), TeamMemberStatus.ACTIVE)
                     .stream()
                     .map(TeamMember::getUserId)
                     .filter(userId -> !userId.equals(event.ownerId()))
-                    .map(userId -> appUserRepository.findById(userId).orElse(null))
-                    .filter(Objects::nonNull)
-                    .map(AppUser::getUsername)
-                    .filter(StringUtils::hasText)
                     .toList();
-            String teamPayload = toJson("""
-                    {"usernames":[""" + usernames.stream().map(u -> "\"" + u + "\"").collect(Collectors.joining(",")) + """
-                    ],"pictureName":"%s","uploaderUsername":"%s"}
-                    """.formatted(escape(event.pictureName()), ownerUsername));
-            if (teamPayload != null) {
-                outboxService.writeEvent("picture", event.pictureId(), "TEAM_UPLOAD", teamPayload);
+
+            if (!memberUserIds.isEmpty()) {
+                Map<UUID, String> usernameMap = appUserRepository.findAllById(memberUserIds).stream()
+                        .filter(user -> StringUtils.hasText(user.getUsername()))
+                        .collect(Collectors.toMap(AppUser::getId, AppUser::getUsername));
+
+                Collection<String> usernames = memberUserIds.stream()
+                        .map(usernameMap::get)
+                        .filter(Objects::nonNull)
+                        .toList();
+
+                if (!usernames.isEmpty()) {
+                    String teamPayload = toJson("""
+                            {"usernames":[""" + usernames.stream().map(u -> "\"" + u + "\"").collect(Collectors.joining(",")) + """
+                            ],"pictureName":"%s","uploaderUsername":"%s"}
+                            """.formatted(escape(event.pictureName()), ownerUsername));
+                    if (teamPayload != null) {
+                        outboxService.writeEvent("picture", event.pictureId(), "TEAM_UPLOAD", teamPayload);
+                    }
+                }
             }
         }
     }
