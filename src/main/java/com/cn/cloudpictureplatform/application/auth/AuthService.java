@@ -30,7 +30,9 @@ import com.cn.cloudpictureplatform.infrastructure.persistence.UserRoleRepository
 import com.cn.cloudpictureplatform.infrastructure.security.AppUserPrincipal;
 import com.cn.cloudpictureplatform.infrastructure.security.JwtTokenService;
 import com.cn.cloudpictureplatform.application.shared.dto.AuthResponse;
+import com.cn.cloudpictureplatform.application.shared.dto.LoginResponse;
 import com.cn.cloudpictureplatform.application.shared.dto.UserInfoResponse;
+import com.cn.cloudpictureplatform.application.shared.dto.UserInfoWithMenusResponse;
 import com.cn.cloudpictureplatform.application.auth.dto.LoginRequest;
 import com.cn.cloudpictureplatform.application.auth.dto.MenuItemResponse;
 import com.cn.cloudpictureplatform.application.auth.dto.RegisterRequest;
@@ -130,7 +132,7 @@ public class AuthService {
         return new AuthResponse(saved.getId(), saved.getUsername(), token, expiresAt);
     }
 
-    public AuthResponse login(LoginRequest request) {
+    public LoginResponse login(LoginRequest request) {
         Optional<AppUser> userOptional = appUserRepository.findByUsername(request.getUsernameOrEmail());
         if (userOptional.isEmpty()) {
             userOptional = appUserRepository.findByEmail(request.getUsernameOrEmail());
@@ -147,7 +149,20 @@ public class AuthService {
         AppUserPrincipal principal = buildPrincipal(user);
         String token = jwtTokenService.generateToken(principal);
         Instant expiresAt = Instant.now().plusSeconds(jwtProperties.getAccessTokenTtlSeconds());
-        return new AuthResponse(user.getId(), user.getUsername(), token, expiresAt);
+        
+        List<UUID> roleIds = userRoleRepository.findRoleIdsByUserId(user.getId());
+        List<MenuItemResponse> menus = getMenusForRoles(roleIds);
+        List<String> permissions = getPermissionsForRoles(roleIds);
+        
+        UserInfoResponse userInfo = buildUserInfoResponse(user, principal);
+        
+        return LoginResponse.builder()
+                .token(token)
+                .expiresAt(expiresAt)
+                .userInfo(userInfo)
+                .menus(menus)
+                .permissions(permissions)
+                .build();
     }
 
     @Transactional
@@ -195,6 +210,20 @@ public class AuthService {
         return buildUserInfoResponse(user, principal);
     }
 
+    public UserInfoWithMenusResponse getUserInfoWithMenus(UUID userId, AppUserPrincipal principal) {
+        AppUser user = appUserRepository.findById(userId)
+                .orElseThrow(() -> new ApiException(ApiErrorCode.NOT_FOUND, "user not found"));
+        UserInfoResponse userInfo = buildUserInfoResponse(user, principal);
+        List<UUID> roleIds = userRoleRepository.findRoleIdsByUserId(userId);
+        List<MenuItemResponse> menus = getMenusForRoles(roleIds);
+        List<String> permissions = getPermissionsForRoles(roleIds);
+        return UserInfoWithMenusResponse.builder()
+                .userInfo(userInfo)
+                .menus(menus)
+                .permissions(permissions)
+                .build();
+    }
+
     public UserInfoResponse updateProfileAndGetInfo(UUID userId, UserProfileUpdateRequest request, AppUserPrincipal principal) {
         AppUser user = updateProfile(userId, request);
         return buildUserInfoResponse(user, principal);
@@ -227,6 +256,10 @@ public class AuthService {
     public List<MenuItemResponse> getMenusForRoles(List<UUID> roleIds) {
         List<Menu> menus = menuRepository.findByRoleIds(roleIds);
         return buildMenuTree(menus, null);
+    }
+
+    public List<String> getPermissionsForRoles(List<UUID> roleIds) {
+        return rolePermissionRepository.findPermissionNamesByRoleIds(roleIds);
     }
 
     private List<MenuItemResponse> buildMenuTree(List<Menu> menus, UUID parentId) {

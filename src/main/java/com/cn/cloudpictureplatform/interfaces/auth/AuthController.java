@@ -12,7 +12,9 @@ import com.cn.cloudpictureplatform.application.auth.AuthService;
 import com.cn.cloudpictureplatform.common.web.ApiResponse;
 import com.cn.cloudpictureplatform.infrastructure.security.AppUserPrincipal;
 import com.cn.cloudpictureplatform.application.shared.dto.AuthResponse;
+import com.cn.cloudpictureplatform.application.shared.dto.LoginResponse;
 import com.cn.cloudpictureplatform.application.shared.dto.UserInfoResponse;
+import com.cn.cloudpictureplatform.application.shared.dto.UserInfoWithMenusResponse;
 import com.cn.cloudpictureplatform.application.auth.dto.LoginRequest;
 import com.cn.cloudpictureplatform.application.auth.dto.RegisterRequest;
 import com.cn.cloudpictureplatform.application.auth.dto.UserProfileUpdateRequest;
@@ -32,13 +34,13 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public ApiResponse<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
+    public ApiResponse<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
         return ApiResponse.ok(authService.login(request));
     }
 
     @GetMapping("/me")
-    public ApiResponse<UserInfoResponse> me(@AuthenticationPrincipal AppUserPrincipal principal) {
-        return ApiResponse.ok(authService.getUserInfo(principal.getId(), principal));
+    public ApiResponse<UserInfoWithMenusResponse> me(@AuthenticationPrincipal AppUserPrincipal principal) {
+        return ApiResponse.ok(authService.getUserInfoWithMenus(principal.getId(), principal));
     }
 
     @PatchMapping("/me")
