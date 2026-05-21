@@ -1,5 +1,6 @@
 package com.cn.cloudpictureplatform.application.picture;
 
+import com.cn.cloudpictureplatform.domain.events.PictureReviewedEvent;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;

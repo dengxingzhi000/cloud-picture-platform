@@ -1,5 +1,6 @@
 package com.cn.cloudpictureplatform.application.picture;
 
+import com.cn.cloudpictureplatform.domain.events.PictureReviewedEvent;
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
