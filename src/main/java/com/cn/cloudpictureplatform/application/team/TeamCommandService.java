@@ -22,9 +22,7 @@ import com.cn.cloudpictureplatform.infrastructure.persistence.SpaceRepository;
 import com.cn.cloudpictureplatform.infrastructure.persistence.TeamMemberEventRepository;
 import com.cn.cloudpictureplatform.infrastructure.persistence.TeamMemberRepository;
 import com.cn.cloudpictureplatform.infrastructure.persistence.TeamRepository;
-import com.cn.cloudpictureplatform.domain.events.DomainEventBus;
-import com.cn.cloudpictureplatform.domain.events.TeamInviteEvent;
-import com.cn.cloudpictureplatform.domain.events.TeamMemberJoinedEvent;
+import com.cn.cloudpictureplatform.websocket.NotificationPublisher;
 import java.time.Instant;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
@@ -39,7 +37,7 @@ public class TeamCommandService {
     private final TeamMemberEventRepository teamMemberEventRepository;
     private final SpaceRepository spaceRepository;
     private final AppUserRepository appUserRepository;
-    private final DomainEventBus domainEventBus;
+    private final NotificationPublisher notificationPublisher;
 
     public TeamCommandService(
             TeamRepository teamRepository,
@@ -47,14 +45,14 @@ public class TeamCommandService {
             TeamMemberEventRepository teamMemberEventRepository,
             SpaceRepository spaceRepository,
             AppUserRepository appUserRepository,
-            DomainEventBus domainEventBus
+            NotificationPublisher notificationPublisher
     ) {
         this.teamRepository = teamRepository;
         this.teamMemberRepository = teamMemberRepository;
         this.teamMemberEventRepository = teamMemberEventRepository;
         this.spaceRepository = spaceRepository;
         this.appUserRepository = appUserRepository;
-        this.domainEventBus = domainEventBus;
+        this.notificationPublisher = notificationPublisher;
     }
 
     public TeamResponse createTeam(UUID ownerId, TeamCreateRequest request) {
@@ -129,11 +127,10 @@ public class TeamCommandService {
         Team team = teamRepository.findById(teamId)
                 .orElseThrow(() -> new ApiException(ApiErrorCode.NOT_FOUND, "team not found"));
         AppUser inviterUser = appUserRepository.findById(inviterId).orElse(null);
-        domainEventBus.publish(new TeamInviteEvent(
-                teamId, team.getName(),
-                invitee.getUsername(),
-                inviterUser == null ? "unknown" : inviterUser.getUsername()));
-        return toMemberResponse(savedMember, invitee, inviterUser);
+        notificationPublisher.notifyTeamInvite(
+                invitee.getUsername(), teamId, team.getName(),
+                inviterUser == null ? "unknown" : inviterUser.getUsername());
+        return toMemberResponse(savedMember, invitee);
     }
 
     public TeamMemberResponse acceptInvite(UUID teamId, UUID userId) {
@@ -143,14 +140,7 @@ public class TeamCommandService {
         TeamMember saved = teamMemberRepository.save(member);
         recordEvent(teamId, userId, userId, TeamMemberEventType.JOINED, saved.getRole());
         AppUser user = appUserRepository.findById(userId).orElse(null);
-        AppUser inviter = member.getInvitedBy() != null ? appUserRepository.findById(member.getInvitedBy()).orElse(null) : null;
-        Team team = teamRepository.findById(teamId).orElse(null);
-        if (team != null && user != null) {
-            domainEventBus.publish(new TeamMemberJoinedEvent(
-                    teamId, team.getName(),
-                    user.getId(), user.getUsername()));
-        }
-        return toMemberResponse(saved, user, inviter);
+        return toMemberResponse(saved, user);
     }
 
     public void rejectInvite(UUID teamId, UUID userId) {
@@ -164,10 +154,9 @@ public class TeamCommandService {
         requireAdmin(actor);
         TeamMember member = requirePendingInvite(teamId, targetUserId);
         AppUser user = appUserRepository.findById(targetUserId).orElse(null);
-        AppUser inviter = member.getInvitedBy() != null ? appUserRepository.findById(member.getInvitedBy()).orElse(null) : null;
         recordEvent(teamId, targetUserId, actorId, TeamMemberEventType.INVITE_CANCELED, member.getRole());
         teamMemberRepository.delete(member);
-        return toMemberResponse(member, user, inviter);
+        return toMemberResponse(member, user);
     }
 
     public TeamMemberResponse updateRole(UUID teamId, UUID actorId, UUID targetUserId, TeamRoleUpdateRequest request) {
@@ -184,8 +173,7 @@ public class TeamCommandService {
         target.setRole(request.getRole());
         TeamMember saved = teamMemberRepository.save(target);
         AppUser user = appUserRepository.findById(targetUserId).orElse(null);
-        AppUser inviter = saved.getInvitedBy() != null ? appUserRepository.findById(saved.getInvitedBy()).orElse(null) : null;
-        return toMemberResponse(saved, user, inviter);
+        return toMemberResponse(saved, user);
     }
 
     public void removeMember(UUID teamId, UUID actorId, UUID targetUserId) {
@@ -242,6 +230,10 @@ public class TeamCommandService {
         return appUserRepository.findByUsername(value)
                 .or(() -> appUserRepository.findByEmail(value))
                 .orElse(null);
+    }
+
+    private TeamMemberResponse toMemberResponse(TeamMember member, AppUser user) {
+        return toMemberResponse(member, user, null);
     }
 
     private TeamMemberResponse toMemberResponse(TeamMember member, AppUser user, AppUser inviter) {
