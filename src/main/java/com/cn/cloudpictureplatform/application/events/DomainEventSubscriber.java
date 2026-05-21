@@ -11,6 +11,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 import org.springframework.util.StringUtils;
+import com.cn.cloudpictureplatform.application.notification.NotificationService;
 import com.cn.cloudpictureplatform.application.outbox.OutboxService;
 import com.cn.cloudpictureplatform.domain.events.PictureReviewedEvent;
 import com.cn.cloudpictureplatform.domain.events.PictureUploadedEvent;
@@ -28,17 +29,20 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 public class DomainEventSubscriber {
 
     private final OutboxService outboxService;
+    private final NotificationService notificationService;
     private final AppUserRepository appUserRepository;
     private final TeamMemberRepository teamMemberRepository;
     private final ObjectMapper objectMapper;
 
     public DomainEventSubscriber(
             OutboxService outboxService,
+            NotificationService notificationService,
             AppUserRepository appUserRepository,
             TeamMemberRepository teamMemberRepository,
             ObjectMapper objectMapper
     ) {
         this.outboxService = outboxService;
+        this.notificationService = notificationService;
         this.appUserRepository = appUserRepository;
         this.teamMemberRepository = teamMemberRepository;
         this.objectMapper = objectMapper;
@@ -58,6 +62,13 @@ public class DomainEventSubscriber {
         if (payload != null) {
             outboxService.writeEvent("picture", event.pictureId(), "REVIEW_DECISION", payload);
         }
+        if (owner != null) {
+            notificationService.save(owner.getId(),
+                    event.approved() ? "PICTURE_APPROVED" : "PICTURE_REJECTED",
+                    event.approved() ? "Picture approved" : "Picture rejected",
+                    "Your picture \"" + event.pictureName() + "\" was " + (event.approved() ? "approved." : "rejected."),
+                    event.pictureId());
+        }
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
@@ -70,6 +81,12 @@ public class DomainEventSubscriber {
                 """.formatted(ownerUsername, escape(event.pictureName())));
         if (uploadPayload != null) {
             outboxService.writeEvent("picture", event.pictureId(), "UPLOAD_COMPLETE", uploadPayload);
+        }
+        if (owner != null) {
+            notificationService.save(owner.getId(), "UPLOAD_COMPLETE",
+                    "Picture upload completed",
+                    "Your picture \"" + event.pictureName() + "\" is available now.",
+                    event.pictureId());
         }
 
         if (event.isPublic()) {
@@ -120,6 +137,13 @@ public class DomainEventSubscriber {
         if (payload != null) {
             outboxService.writeEvent("team", event.teamId(), "TEAM_INVITE", payload);
         }
+        AppUser invitee = appUserRepository.findByUsername(event.inviteeUsername()).orElse(null);
+        if (invitee != null) {
+            notificationService.save(invitee.getId(), "TEAM_INVITE",
+                    "Team invitation",
+                    event.inviterUsername() + " invited you to join team \"" + event.teamName() + "\".",
+                    event.teamId());
+        }
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
@@ -129,6 +153,15 @@ public class DomainEventSubscriber {
                 """.formatted(escape(event.teamName()), escape(event.username())));
         if (payload != null) {
             outboxService.writeEvent("team", event.teamId(), "TEAM_MEMBER_JOINED", payload);
+        }
+        List<TeamMember> members = teamMemberRepository.findByTeamIdAndStatus(event.teamId(), TeamMemberStatus.ACTIVE);
+        for (TeamMember member : members) {
+            if (!member.getUserId().equals(event.userId())) {
+                notificationService.save(member.getUserId(), "TEAM_MEMBER_JOINED",
+                        "New team member",
+                        event.username() + " joined team \"" + event.teamName() + "\".",
+                        event.teamId());
+            }
         }
     }
 
