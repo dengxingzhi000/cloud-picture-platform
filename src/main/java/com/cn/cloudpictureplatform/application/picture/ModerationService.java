@@ -1,5 +1,6 @@
 package com.cn.cloudpictureplatform.application.picture;
 
+import com.cn.cloudpictureplatform.domain.events.DomainEventBus;
 import com.cn.cloudpictureplatform.domain.events.PictureReviewedEvent;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -45,7 +46,7 @@ public class ModerationService {
     private final AiModerationRecordRepository aiModerationRecordRepository;
     private final AppUserRepository appUserRepository;
     private final com.cn.cloudpictureplatform.application.search.SearchIndexService searchIndexService;
-    private final org.springframework.context.ApplicationEventPublisher eventPublisher;
+    private final DomainEventBus domainEventBus;
 
     public ModerationService(
             PictureAssetRepository pictureAssetRepository,
@@ -53,14 +54,14 @@ public class ModerationService {
             AiModerationRecordRepository aiModerationRecordRepository,
             AppUserRepository appUserRepository,
             com.cn.cloudpictureplatform.application.search.SearchIndexService searchIndexService,
-            org.springframework.context.ApplicationEventPublisher eventPublisher
+            DomainEventBus domainEventBus
     ) {
         this.pictureAssetRepository = pictureAssetRepository;
         this.moderationRecordRepository = moderationRecordRepository;
         this.aiModerationRecordRepository = aiModerationRecordRepository;
         this.appUserRepository = appUserRepository;
         this.searchIndexService = searchIndexService;
-        this.eventPublisher = eventPublisher;
+        this.domainEventBus = domainEventBus;
     }
 
     @Transactional
@@ -92,7 +93,7 @@ public class ModerationService {
         moderationRecordRepository.save(record);
 
         searchIndexService.enqueuePicture(saved.getId());
-        eventPublisher.publishEvent(new PictureReviewedEvent(
+        domainEventBus.publish(new PictureReviewedEvent(
                 saved.getId(), saved.getName(), saved.getOwnerId(),
                 status == ReviewStatus.APPROVED, record.getReason()
         ));
@@ -107,7 +108,7 @@ public class ModerationService {
         asset.setReviewStatus(ReviewStatus.AUTO_APPROVED);
         asset = pictureAssetRepository.save(asset);
         searchIndexService.enqueuePicture(pictureId);
-        eventPublisher.publishEvent(new PictureReviewedEvent(
+        domainEventBus.publish(new PictureReviewedEvent(
                 pictureId, asset.getName(), asset.getOwnerId(), true, "auto-approved by " + provider));
     }
 
@@ -118,7 +119,7 @@ public class ModerationService {
         asset.setReviewStatus(ReviewStatus.AUTO_REJECTED);
         asset = pictureAssetRepository.save(asset);
         searchIndexService.enqueuePicture(pictureId);
-        eventPublisher.publishEvent(new PictureReviewedEvent(
+        domainEventBus.publish(new PictureReviewedEvent(
                 pictureId, asset.getName(), asset.getOwnerId(), false, reason));
     }
 
