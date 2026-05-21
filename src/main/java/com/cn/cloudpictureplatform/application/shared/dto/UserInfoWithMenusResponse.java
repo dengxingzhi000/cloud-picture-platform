@@ -14,5 +14,4 @@ import com.cn.cloudpictureplatform.application.auth.dto.MenuItemResponse;
 public class UserInfoWithMenusResponse {
     private UserInfoResponse userInfo;
     private List<MenuItemResponse> menus;
-    private List<String> permissions;
 }

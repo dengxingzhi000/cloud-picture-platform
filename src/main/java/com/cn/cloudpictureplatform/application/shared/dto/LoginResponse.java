@@ -17,5 +17,4 @@ public class LoginResponse {
     private Instant expiresAt;
     private UserInfoResponse userInfo;
     private List<MenuItemResponse> menus;
-    private List<String> permissions;
 }

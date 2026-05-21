@@ -146,22 +146,20 @@ public class AuthService {
         if (!passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
             throw new ApiException(ApiErrorCode.UNAUTHORIZED, "invalid credentials");
         }
-        AppUserPrincipal principal = buildPrincipal(user);
+        List<UUID> roleIds = userRoleRepository.findRoleIdsByUserId(user.getId());
+        AppUserPrincipal principal = buildPrincipal(user, roleIds);
         String token = jwtTokenService.generateToken(principal);
         Instant expiresAt = Instant.now().plusSeconds(jwtProperties.getAccessTokenTtlSeconds());
-        
-        List<UUID> roleIds = userRoleRepository.findRoleIdsByUserId(user.getId());
+
         List<MenuItemResponse> menus = getMenusForRoles(roleIds);
-        List<String> permissions = getPermissionsForRoles(roleIds);
-        
+
         UserInfoResponse userInfo = buildUserInfoResponse(user, principal);
-        
+
         return LoginResponse.builder()
                 .token(token)
                 .expiresAt(expiresAt)
                 .userInfo(userInfo)
                 .menus(menus)
-                .permissions(permissions)
                 .build();
     }
 
@@ -187,7 +185,10 @@ public class AuthService {
      */
     public AppUserPrincipal buildPrincipal(AppUser user) {
         List<UUID> roleIds = userRoleRepository.findRoleIdsByUserId(user.getId());
+        return buildPrincipal(user, roleIds);
+    }
 
+    private AppUserPrincipal buildPrincipal(AppUser user, List<UUID> roleIds) {
         Set<String> roles = resolveRoleNames(roleIds);
 
         Set<String> permissions = Set.copyOf(
@@ -216,11 +217,9 @@ public class AuthService {
         UserInfoResponse userInfo = buildUserInfoResponse(user, principal);
         List<UUID> roleIds = userRoleRepository.findRoleIdsByUserId(userId);
         List<MenuItemResponse> menus = getMenusForRoles(roleIds);
-        List<String> permissions = getPermissionsForRoles(roleIds);
         return UserInfoWithMenusResponse.builder()
                 .userInfo(userInfo)
                 .menus(menus)
-                .permissions(permissions)
                 .build();
     }
 
@@ -253,12 +252,12 @@ public class AuthService {
                 .collect(Collectors.toSet());
     }
 
-    public List<MenuItemResponse> getMenusForRoles(List<UUID> roleIds) {
+    private List<MenuItemResponse> getMenusForRoles(List<UUID> roleIds) {
         List<Menu> menus = menuRepository.findByRoleIds(roleIds);
         return buildMenuTree(menus, null);
     }
 
-    public List<String> getPermissionsForRoles(List<UUID> roleIds) {
+    private List<String> getPermissionsForRoles(List<UUID> roleIds) {
         return rolePermissionRepository.findPermissionNamesByRoleIds(roleIds);
     }
 
