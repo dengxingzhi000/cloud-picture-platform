@@ -56,6 +56,7 @@ public class OutboxProcessor {
     private void processEvent(OutboxEvent event) {
         switch (event.getAggregateType()) {
             case "picture" -> handlePictureEvent(event);
+            case "team" -> handleTeamEvent(event);
             default -> log.warn("Unknown outbox aggregate type: {}", event.getAggregateType());
         }
     }
@@ -86,6 +87,26 @@ public class OutboxProcessor {
                 log.debug("Skipping TEAM_UPLOAD event {} (handled directly)", event.getId());
             }
             default -> log.warn("Unknown picture event type: {}", event.getEventType());
+        }
+    }
+
+    private void handleTeamEvent(OutboxEvent event) {
+        JsonNode payload = parsePayload(event.getPayload());
+        if (payload == null) return;
+        UUID teamId = event.getAggregateId();
+        String teamName = payload.path("teamName").asText("unknown");
+
+        switch (event.getEventType()) {
+            case "TEAM_INVITE" -> {
+                String inviterUsername = payload.path("inviterUsername").asText("unknown");
+                String inviteeUsername = payload.path("inviteeUsername").asText("unknown");
+                notificationPublisher.notifyTeamInvite(inviteeUsername, teamId, teamName, inviterUsername);
+            }
+            case "TEAM_MEMBER_JOINED" -> {
+                String username = payload.path("username").asText("unknown");
+                notificationPublisher.notifyTeamMemberJoined(username, teamId, teamName);
+            }
+            default -> log.warn("Unknown team event type: {}", event.getEventType());
         }
     }
 

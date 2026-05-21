@@ -127,6 +127,17 @@ public class NotificationPublisher {
         }
     }
 
+    public void notifyTeamMemberJoined(String username, UUID teamId, String teamName) {
+        NotificationMessage notification = NotificationMessage.builder()
+                .kind(NotificationMessage.NotificationKind.TEAM_MEMBER_JOINED)
+                .title("New team member")
+                .body(username + " joined team \"" + teamName + "\".")
+                .targetId(teamId)
+                .timestamp(Instant.now())
+                .build();
+        sendToUser(username, notification);
+    }
+
     private void sendToUser(String username, NotificationMessage notification) {
         if (username == null || username.isBlank()) {
             return;

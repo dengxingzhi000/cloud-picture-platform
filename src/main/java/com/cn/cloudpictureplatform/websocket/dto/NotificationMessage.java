@@ -24,6 +24,7 @@ public class NotificationMessage {
         REVIEW_PENDING,
         TEAM_INVITE,
         UPLOAD_COMPLETE,
-        TEAM_PICTURE_UPLOADED
+        TEAM_PICTURE_UPLOADED,
+        TEAM_MEMBER_JOINED
     }
 }
