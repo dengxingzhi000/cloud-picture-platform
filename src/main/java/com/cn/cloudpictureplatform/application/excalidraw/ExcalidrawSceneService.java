@@ -4,7 +4,12 @@ import com.cn.cloudpictureplatform.common.exception.ApiException;
 import com.cn.cloudpictureplatform.common.web.ApiErrorCode;
 import com.cn.cloudpictureplatform.domain.excalidraw.ExcalidrawScene;
 import com.cn.cloudpictureplatform.domain.picture.PictureAsset;
+import com.cn.cloudpictureplatform.domain.picture.ReviewStatus;
+import com.cn.cloudpictureplatform.domain.picture.Visibility;
+import com.cn.cloudpictureplatform.domain.space.Space;
+import com.cn.cloudpictureplatform.domain.space.SpaceType;
 import com.cn.cloudpictureplatform.infrastructure.persistence.PictureAssetRepository;
+import com.cn.cloudpictureplatform.infrastructure.persistence.SpaceRepository;
 import com.cn.cloudpictureplatform.infrastructure.persistence.excalidraw.ExcalidrawSceneRepository;
 import com.cn.cloudpictureplatform.infrastructure.persistence.excalidraw.ExcalidrawFileRepository;
 import com.cn.cloudpictureplatform.interfaces.excalidraw.dto.CreateExcalidrawSceneRequest;
@@ -22,6 +27,7 @@ public class ExcalidrawSceneService {
     private final ExcalidrawSceneRepository sceneRepository;
     private final ExcalidrawFileRepository fileRepository;
     private final PictureAssetRepository pictureAssetRepository;
+    private final SpaceRepository spaceRepository;
 
     @Transactional
     public ExcalidrawSceneResponse createScene(CreateExcalidrawSceneRequest request, UUID userId) {
@@ -29,14 +35,20 @@ public class ExcalidrawSceneService {
 
         // Whiteboard mode: create a placeholder PictureAsset for unified management
         if (pictureId == null) {
+            Space personalSpace = spaceRepository
+                    .findFirstByOwnerIdAndType(userId, SpaceType.PERSONAL)
+                    .orElseThrow(() -> new ApiException(ApiErrorCode.NOT_FOUND, "personal space not found for user"));
+
             PictureAsset whiteboardPicture = PictureAsset.builder()
                     .ownerId(userId)
-                    .spaceId(UUID.randomUUID()) // TODO: use default space
+                    .spaceId(personalSpace.getId())
                     .name(request.getSceneName() != null ? request.getSceneName() : "Untitled Whiteboard")
                     .originalFilename("whiteboard.excalidraw")
                     .contentType("application/x-excalidraw")
                     .sizeBytes(0L)
                     .storageKey("whiteboard:" + UUID.randomUUID())
+                    .visibility(Visibility.PRIVATE)
+                    .reviewStatus(ReviewStatus.PENDING)
                     .build();
             pictureId = pictureAssetRepository.save(whiteboardPicture).getId();
         }
