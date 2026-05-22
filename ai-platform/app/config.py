@@ -1,8 +1,8 @@
 from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
-    rabbitmq_url: str = "amqp://guest:guest@localhost:5672"
-    redis_url: str = "redis://localhost:6379"
+    rabbitmq_url: str = "amqp://guest:guest@192.168.80.133:5672"
+    redis_url: str = "redis://192.168.80.133:6379"
     clip_model_name: str = "ViT-L-14"
     clip_pretrained: str = "openai"
     moderation_provider: str = "aliyun"

@@ -4,7 +4,9 @@
 
 spring:
   autoconfigure:
-    exclude: org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
+    exclude:
+      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
+      - org.springframework.boot.autoconfigure.amqp.RabbitAutoConfiguration
   datasource:
     url: jdbc:h2:mem:cloud_picture;MODE=PostgreSQL;DB_CLOSE_DELAY=-1
     username: sa

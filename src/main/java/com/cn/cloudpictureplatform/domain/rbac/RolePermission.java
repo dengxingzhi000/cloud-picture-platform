@@ -3,22 +3,8 @@ package com.cn.cloudpictureplatform.domain.rbac;
 import jakarta.persistence.*;
 import lombok.*;
 
-import java.io.Serializable;
 import java.time.Instant;
 import java.util.UUID;
-
-@Getter
-@Setter
-@NoArgsConstructor
-@AllArgsConstructor
-@Embeddable
-class RolePermissionKey implements Serializable {
-    @Column(name = "role_id", columnDefinition = "uuid")
-    private UUID roleId;
-
-    @Column(name = "permission_id", columnDefinition = "uuid")
-    private UUID permissionId;
-}
 
 @Getter
 @Setter

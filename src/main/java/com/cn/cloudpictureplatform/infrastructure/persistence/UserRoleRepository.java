@@ -7,8 +7,9 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import com.cn.cloudpictureplatform.domain.rbac.UserRole;
+import com.cn.cloudpictureplatform.domain.rbac.UserRoleKey;
 
-public interface UserRoleRepository extends JpaRepository<UserRole, UUID> {
+public interface UserRoleRepository extends JpaRepository<UserRole, UserRoleKey> {
 
     List<UserRole> findByUserId(UUID userId);
 

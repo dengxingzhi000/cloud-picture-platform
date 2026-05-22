@@ -7,8 +7,9 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import com.cn.cloudpictureplatform.domain.rbac.RolePermission;
+import com.cn.cloudpictureplatform.domain.rbac.RolePermissionKey;
 
-public interface RolePermissionRepository extends JpaRepository<RolePermission, UUID> {
+public interface RolePermissionRepository extends JpaRepository<RolePermission, RolePermissionKey> {
 
     List<RolePermission> findByRoleId(UUID roleId);
 
