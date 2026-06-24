@@ -11,7 +11,7 @@ import com.cn.cloudpictureplatform.application.picture.PictureDocumentService;
 import com.cn.cloudpictureplatform.application.picture.PictureCollaborationRoomService;
 import com.cn.cloudpictureplatform.application.shared.dto.PictureCollaborationRoomResponse;
 import com.cn.cloudpictureplatform.domain.user.UserRole;
-import com.cn.cloudpictureplatform.infrastructure.security.AppUserPrincipal;
+import com.cn.cloudpictureplatform.common.security.AppUserPrincipal;
 import com.cn.cloudpictureplatform.application.shared.dto.PictureEditorDocumentResponse;
 import com.cn.cloudpictureplatform.interfaces.picture.dto.PictureEditorSessionResponse;
 import com.cn.cloudpictureplatform.websocket.EditLockPort;

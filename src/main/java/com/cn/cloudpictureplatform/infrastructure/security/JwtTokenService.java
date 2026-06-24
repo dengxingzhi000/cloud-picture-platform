@@ -1,4 +1,5 @@
 package com.cn.cloudpictureplatform.infrastructure.security;
+import com.cn.cloudpictureplatform.common.security.AppUserPrincipal;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;

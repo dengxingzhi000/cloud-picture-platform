@@ -12,7 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.cn.cloudpictureplatform.domain.outbox.OutboxEvent;
 import com.cn.cloudpictureplatform.domain.outbox.OutboxStatus;
 import com.cn.cloudpictureplatform.infrastructure.persistence.OutboxEventRepository;
-import com.cn.cloudpictureplatform.websocket.NotificationPublisher;
+import com.cn.cloudpictureplatform.application.notification.NotificationPort;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -22,16 +22,16 @@ import lombok.extern.slf4j.Slf4j;
 @Service
 public class OutboxProcessor {
     private final OutboxEventRepository outboxEventRepository;
-    private final NotificationPublisher notificationPublisher;
+    private final NotificationPort NotificationPort;
     private final ObjectMapper objectMapper;
 
     public OutboxProcessor(
             OutboxEventRepository outboxEventRepository,
-            NotificationPublisher notificationPublisher,
+            NotificationPort NotificationPort,
             ObjectMapper objectMapper
     ) {
         this.outboxEventRepository = outboxEventRepository;
-        this.notificationPublisher = notificationPublisher;
+        this.NotificationPort = NotificationPort;
         this.objectMapper = objectMapper;
     }
 
@@ -72,17 +72,17 @@ public class OutboxProcessor {
         switch (event.getEventType()) {
             case "UPLOAD_COMPLETE" -> {
                 String ownerUsername = payload.path("ownerUsername").asText();
-                notificationPublisher.notifyUploadCompleted(ownerUsername, pictureId, pictureName);
+                NotificationPort.notifyUploadCompleted(ownerUsername, pictureId, pictureName);
             }
             case "REVIEW_DECISION" -> {
                 String ownerUsername = payload.path("ownerUsername").asText();
                 boolean approved = payload.path("approved").asBoolean();
                 String reason = payload.path("reason").asText(null);
-                notificationPublisher.notifyReviewDecision(ownerUsername, pictureId, pictureName, approved, reason);
+                NotificationPort.notifyReviewDecision(ownerUsername, pictureId, pictureName, approved, reason);
             }
             case "ADMIN_NEW_UPLOAD" -> {
                 String uploaderUsername = payload.path("uploaderUsername").asText("unknown");
-                notificationPublisher.notifyAdminNewUpload(pictureId, pictureName, uploaderUsername);
+                NotificationPort.notifyAdminNewUpload(pictureId, pictureName, uploaderUsername);
             }
             case "TEAM_UPLOAD" -> {
                 Collection<String> usernames = new ArrayList<>();
@@ -93,7 +93,7 @@ public class OutboxProcessor {
                     }
                 }
                 String uploaderUsername = payload.path("uploaderUsername").asText("unknown");
-                notificationPublisher.notifyTeamPictureUploaded(usernames, pictureId, pictureName, uploaderUsername);
+                NotificationPort.notifyTeamPictureUploaded(usernames, pictureId, pictureName, uploaderUsername);
             }
             default -> log.warn("Unknown picture event type: {}", event.getEventType());
         }
@@ -109,11 +109,11 @@ public class OutboxProcessor {
             case "TEAM_INVITE" -> {
                 String inviterUsername = payload.path("inviterUsername").asText("unknown");
                 String inviteeUsername = payload.path("inviteeUsername").asText("unknown");
-                notificationPublisher.notifyTeamInvite(inviteeUsername, teamId, teamName, inviterUsername);
+                NotificationPort.notifyTeamInvite(inviteeUsername, teamId, teamName, inviterUsername);
             }
             case "TEAM_MEMBER_JOINED" -> {
                 String username = payload.path("username").asText("unknown");
-                notificationPublisher.notifyTeamMemberJoined(username, teamId, teamName);
+                NotificationPort.notifyTeamMemberJoined(username, teamId, teamName);
             }
             default -> log.warn("Unknown team event type: {}", event.getEventType());
         }

@@ -27,7 +27,7 @@ import com.cn.cloudpictureplatform.infrastructure.persistence.RolePermissionRepo
 import com.cn.cloudpictureplatform.infrastructure.persistence.RoleRepository;
 import com.cn.cloudpictureplatform.infrastructure.persistence.SpaceRepository;
 import com.cn.cloudpictureplatform.infrastructure.persistence.UserRoleRepository;
-import com.cn.cloudpictureplatform.infrastructure.security.AppUserPrincipal;
+import com.cn.cloudpictureplatform.common.security.AppUserPrincipal;
 import com.cn.cloudpictureplatform.infrastructure.security.JwtTokenService;
 import com.cn.cloudpictureplatform.application.shared.dto.AuthResponse;
 import com.cn.cloudpictureplatform.application.shared.dto.LoginResponse;

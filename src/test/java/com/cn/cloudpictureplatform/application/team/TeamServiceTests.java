@@ -27,7 +27,7 @@ import com.cn.cloudpictureplatform.infrastructure.persistence.TeamMemberReposito
 import com.cn.cloudpictureplatform.infrastructure.persistence.TeamRepository;
 import com.cn.cloudpictureplatform.application.team.dto.TeamInviteRequest;
 import com.cn.cloudpictureplatform.application.team.dto.TeamSummaryResponse;
-import com.cn.cloudpictureplatform.websocket.NotificationPublisher;
+import com.cn.cloudpictureplatform.application.notification.NotificationPort;
 
 @ExtendWith(MockitoExtension.class)
 class TeamServiceTests {
@@ -43,7 +43,7 @@ class TeamServiceTests {
     @Mock
     private AppUserRepository appUserRepository;
     @Mock
-    private NotificationPublisher notificationPublisher;
+    private NotificationPort notificationPort;
 
     private TeamCommandService teamCommandService;
     private TeamQueryService teamQueryService;
@@ -56,7 +56,7 @@ class TeamServiceTests {
                 teamMemberEventRepository,
                 spaceRepository,
                 appUserRepository,
-                notificationPublisher
+                notificationPort
         );
         teamQueryService = new TeamQueryService(
                 teamRepository,
@@ -116,7 +116,7 @@ class TeamServiceTests {
         teamCommandService.inviteMember(teamId, inviterId, request);
 
         verify(teamMemberEventRepository).save(any(TeamMemberEvent.class));
-        verify(notificationPublisher).notifyTeamInvite("bob", teamId, "Design Team", "alice");
+        verify(notificationPort).notifyTeamInvite("bob", teamId, "Design Team", "alice");
     }
 
     @Test

@@ -10,7 +10,7 @@ import com.cn.cloudpictureplatform.common.web.ApiResponse;
 import com.cn.cloudpictureplatform.domain.ai.AiChatRequest;
 import com.cn.cloudpictureplatform.domain.ai.AiChatResponse;
 import com.cn.cloudpictureplatform.domain.ai.AiGateway;
-import com.cn.cloudpictureplatform.infrastructure.security.AppUserPrincipal;
+import com.cn.cloudpictureplatform.common.security.AppUserPrincipal;
 
 @RestController
 @RequestMapping("/api/v1/ai")

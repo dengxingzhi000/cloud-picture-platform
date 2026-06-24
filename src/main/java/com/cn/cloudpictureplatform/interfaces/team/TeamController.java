@@ -27,7 +27,7 @@ import com.cn.cloudpictureplatform.domain.team.TeamMemberStatus;
 import com.cn.cloudpictureplatform.domain.team.TeamMemberEventType;
 import com.cn.cloudpictureplatform.domain.team.TeamRole;
 import com.cn.cloudpictureplatform.common.util.CsvUtil;
-import com.cn.cloudpictureplatform.infrastructure.security.AppUserPrincipal;
+import com.cn.cloudpictureplatform.common.security.AppUserPrincipal;
 import com.cn.cloudpictureplatform.application.team.dto.TeamCreateRequest;
 import com.cn.cloudpictureplatform.application.team.dto.TeamInviteRequest;
 import com.cn.cloudpictureplatform.application.team.dto.TeamInviteSummaryResponse;
