@@ -13,7 +13,7 @@ import com.cn.cloudpictureplatform.common.web.ApiResponse;
 import com.cn.cloudpictureplatform.interfaces.admin.dto.SearchReindexResponse;
 
 @RestController
-@RequestMapping("/api/admin/search")
+@RequestMapping("/api/v1/admin/search")
 public class SearchAdminController {
     private final SearchMaintenanceService searchMaintenanceService;
 

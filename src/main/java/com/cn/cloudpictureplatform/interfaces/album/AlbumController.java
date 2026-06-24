@@ -18,7 +18,7 @@ import com.cn.cloudpictureplatform.interfaces.album.dto.AlbumCreateRequest;
 import com.cn.cloudpictureplatform.interfaces.album.dto.AlbumResponse;
 
 @RestController
-@RequestMapping("/api/albums")
+@RequestMapping("/api/v1/albums")
 public class AlbumController {
     private final AlbumService albumService;
 

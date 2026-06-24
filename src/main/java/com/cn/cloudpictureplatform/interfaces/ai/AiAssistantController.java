@@ -13,7 +13,7 @@ import com.cn.cloudpictureplatform.infrastructure.ai.gateway.AiGateway;
 import com.cn.cloudpictureplatform.infrastructure.security.AppUserPrincipal;
 
 @RestController
-@RequestMapping("/api/ai")
+@RequestMapping("/api/v1/ai")
 @ConditionalOnBean(AiGateway.class)
 public class AiAssistantController {
     private final AiGateway aiGateway;

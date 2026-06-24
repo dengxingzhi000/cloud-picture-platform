@@ -20,7 +20,7 @@ import com.cn.cloudpictureplatform.infrastructure.security.AppUserPrincipal;
 import com.cn.cloudpictureplatform.interfaces.watermark.dto.WatermarkConfigRequest;
 
 @RestController
-@RequestMapping("/api")
+@RequestMapping("/api/v1")
 public class WatermarkController {
     private final WatermarkService watermarkService;
 

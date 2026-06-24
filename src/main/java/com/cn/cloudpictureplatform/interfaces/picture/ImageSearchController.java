@@ -10,7 +10,7 @@ import com.cn.cloudpictureplatform.common.web.ApiResponse;
 import com.cn.cloudpictureplatform.common.web.PageResponse;
 
 @RestController
-@RequestMapping("/api/search")
+@RequestMapping("/api/v1/search")
 public class ImageSearchController {
     private final HybridSearchService hybridSearchService;
 

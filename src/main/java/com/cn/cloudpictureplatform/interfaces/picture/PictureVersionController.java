@@ -15,7 +15,7 @@ import com.cn.cloudpictureplatform.infrastructure.security.AppUserPrincipal;
 import com.cn.cloudpictureplatform.interfaces.picture.dto.PictureVersionResponse;
 
 @RestController
-@RequestMapping("/api/pictures/{pictureId}/versions")
+@RequestMapping("/api/v1/pictures/{pictureId}/versions")
 public class PictureVersionController {
     private final PictureVersionService pictureVersionService;
 

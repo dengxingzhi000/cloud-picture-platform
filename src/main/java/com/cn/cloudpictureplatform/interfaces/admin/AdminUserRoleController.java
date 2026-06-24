@@ -19,7 +19,7 @@ import com.cn.cloudpictureplatform.application.shared.dto.UserRoleResponse;
 import lombok.RequiredArgsConstructor;
 
 @RestController
-@RequestMapping("/api/admin/users/{userId}/roles")
+@RequestMapping("/api/v1/admin/users/{userId}/roles")
 @RequiredArgsConstructor
 public class AdminUserRoleController {
     private final UserRoleService userRoleService;

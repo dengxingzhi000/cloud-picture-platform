@@ -23,7 +23,7 @@ import com.cn.cloudpictureplatform.application.tag.dto.TagUpdateRequest;
 
 @Validated
 @RestController
-@RequestMapping("/api/tags")
+@RequestMapping("/api/v1/tags")
 public class TagController {
     private final TagService tagService;
 

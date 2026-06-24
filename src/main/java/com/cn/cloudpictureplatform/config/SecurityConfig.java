@@ -35,13 +35,13 @@ public class SecurityConfig {
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/register", "/api/auth/login", "/actuator/health").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/pictures/public").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/pictures/search").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/pictures/recommendations").permitAll()
+                        .requestMatchers("/api/v1/auth/register", "/api/v1/auth/login", "/actuator/health").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/pictures/public").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/pictures/search").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/pictures/recommendations").permitAll()
                         .requestMatchers(HttpMethod.GET, "/uploads/**").permitAll()
                         .requestMatchers("/ws/**").permitAll()
-                        .requestMatchers("/api/admin/**").hasAuthority("admin:review")
+                        .requestMatchers("/api/v1/admin/**").hasAuthority("admin:review")
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
