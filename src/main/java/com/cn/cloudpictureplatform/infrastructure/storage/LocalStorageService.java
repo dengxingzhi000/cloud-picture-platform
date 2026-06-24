@@ -36,7 +36,7 @@ public class LocalStorageService implements StorageService {
         } catch (IOException ex) {
             throw new ApiException(ApiErrorCode.SERVER_ERROR, "failed to store file");
         }
-        String url = "/uploads/" + key.replace("\\", "/");
+        String url = "/api/files/" + key.replace("\\", "/");
         return new StorageResult(key, url, file.getSize(), file.getContentType());
     }
 
@@ -53,7 +53,7 @@ public class LocalStorageService implements StorageService {
         } catch (IOException ex) {
             throw new ApiException(ApiErrorCode.SERVER_ERROR, "failed to store file");
         }
-        String url = "/uploads/" + key.replace("\\", "/");
+        String url = "/api/files/" + key.replace("\\", "/");
         return new StorageResult(key, url, data.length, contentType);
     }
 
