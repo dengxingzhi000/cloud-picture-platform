@@ -24,7 +24,7 @@ import lombok.RequiredArgsConstructor;
 
 @Validated
 @RestController
-@RequestMapping("/api/admin/permissions")
+@RequestMapping("/api/v1/admin/permissions")
 @RequiredArgsConstructor
 public class AdminPermissionController {
     private final PermissionService permissionService;

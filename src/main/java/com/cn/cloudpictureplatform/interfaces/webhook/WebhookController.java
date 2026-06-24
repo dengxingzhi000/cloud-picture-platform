@@ -20,7 +20,7 @@ import com.cn.cloudpictureplatform.domain.webhook.WebhookEndpoint;
 import com.cn.cloudpictureplatform.infrastructure.security.AppUserPrincipal;
 
 @RestController
-@RequestMapping("/api/webhooks")
+@RequestMapping("/api/v1/webhooks")
 public class WebhookController {
     private final WebhookService webhookService;
 

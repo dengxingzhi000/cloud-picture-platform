@@ -12,7 +12,7 @@ import com.cn.cloudpictureplatform.common.web.ApiResponse;
 import com.cn.cloudpictureplatform.infrastructure.security.AppUserPrincipal;
 
 @RestController
-@RequestMapping("/api/spaces")
+@RequestMapping("/api/v1/spaces")
 public class SpaceController {
     private final SpaceQuotaService spaceQuotaService;
 

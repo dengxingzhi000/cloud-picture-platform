@@ -20,7 +20,7 @@ import com.cn.cloudpictureplatform.application.auth.dto.RegisterRequest;
 import com.cn.cloudpictureplatform.application.auth.dto.UserProfileUpdateRequest;
 
 @RestController
-@RequestMapping("/api/auth")
+@RequestMapping("/api/v1/auth")
 public class AuthController {
     private final AuthService authService;
 

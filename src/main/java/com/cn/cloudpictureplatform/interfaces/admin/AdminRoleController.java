@@ -26,7 +26,7 @@ import lombok.RequiredArgsConstructor;
 
 @Validated
 @RestController
-@RequestMapping("/api/admin/roles")
+@RequestMapping("/api/v1/admin/roles")
 @RequiredArgsConstructor
 public class AdminRoleController {
     private final RoleService roleService;

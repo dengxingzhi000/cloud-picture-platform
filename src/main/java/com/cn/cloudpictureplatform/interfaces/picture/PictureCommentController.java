@@ -19,7 +19,7 @@ import com.cn.cloudpictureplatform.interfaces.picture.dto.CommentCreateRequest;
 import com.cn.cloudpictureplatform.interfaces.picture.dto.CommentResponse;
 
 @RestController
-@RequestMapping("/api/pictures/{pictureId}/comments")
+@RequestMapping("/api/v1/pictures/{pictureId}/comments")
 public class PictureCommentController {
     private final PictureCommentService pictureCommentService;
 

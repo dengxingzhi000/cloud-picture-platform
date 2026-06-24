@@ -18,7 +18,7 @@ import com.cn.cloudpictureplatform.domain.apikey.ApiKey;
 import com.cn.cloudpictureplatform.infrastructure.security.AppUserPrincipal;
 
 @RestController
-@RequestMapping("/api/developer/keys")
+@RequestMapping("/api/v1/developer/keys")
 public class DeveloperController {
     private final ApiKeyService apiKeyService;
 

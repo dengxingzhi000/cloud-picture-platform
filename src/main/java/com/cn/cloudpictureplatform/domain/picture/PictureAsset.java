@@ -3,6 +3,7 @@ package com.cn.cloudpictureplatform.domain.picture;
 import com.cn.cloudpictureplatform.common.exception.ApiException;
 import com.cn.cloudpictureplatform.common.model.BaseEntity;
 import com.cn.cloudpictureplatform.common.web.ApiErrorCode;
+import java.time.Instant;
 import java.util.UUID;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -73,6 +74,12 @@ public class PictureAsset extends BaseEntity {
     @Column
     private Integer height;
 
+    @Column(name = "deleted_at")
+    private Instant deletedAt;
+
+    @Column(name = "deleted_by", columnDefinition = "uuid")
+    private UUID deletedBy;
+
     // ── Aggregate Root 业务方法 ──────────────────────────────
 
     public void changeVisibility(Visibility newVisibility) {
@@ -136,5 +143,19 @@ public class PictureAsset extends BaseEntity {
         if (newName != null && !newName.isBlank()) {
             this.name = newName.trim();
         }
+    }
+
+    public void softDelete(UUID deletedBy) {
+        this.deletedAt = Instant.now();
+        this.deletedBy = deletedBy;
+    }
+
+    public boolean isDeleted() {
+        return this.deletedAt != null;
+    }
+
+    public void restore() {
+        this.deletedAt = null;
+        this.deletedBy = null;
     }
 }

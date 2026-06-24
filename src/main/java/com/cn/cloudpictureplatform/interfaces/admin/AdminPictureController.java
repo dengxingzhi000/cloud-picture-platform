@@ -32,7 +32,7 @@ import com.cn.cloudpictureplatform.application.shared.dto.PictureResponse;
 
 @Validated
 @RestController
-@RequestMapping("/api/admin/pictures")
+@RequestMapping("/api/v1/admin/pictures")
 public class AdminPictureController {
     private final ModerationService moderationService;
 

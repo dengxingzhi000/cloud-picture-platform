@@ -50,7 +50,7 @@ import lombok.RequiredArgsConstructor;
 
 @Validated
 @RestController
-@RequestMapping("/api/pictures")
+@RequestMapping("/api/v1/pictures")
 @RequiredArgsConstructor
 public class PictureController {
     private static final String SESSION_CONTRACT_VERSION = "picture-editor-session.v1";

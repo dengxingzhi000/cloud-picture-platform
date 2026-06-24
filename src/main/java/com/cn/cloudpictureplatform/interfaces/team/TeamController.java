@@ -40,7 +40,7 @@ import com.cn.cloudpictureplatform.application.team.dto.TeamUpdateRequest;
 
 @Validated
 @RestController
-@RequestMapping("/api/teams")
+@RequestMapping("/api/v1/teams")
 public class TeamController {
     private final TeamQueryService teamQueryService;
     private final TeamCommandService teamCommandService;

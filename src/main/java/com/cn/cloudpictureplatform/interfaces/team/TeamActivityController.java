@@ -12,7 +12,7 @@ import com.cn.cloudpictureplatform.common.web.ApiResponse;
 import com.cn.cloudpictureplatform.common.web.PageResponse;
 
 @RestController
-@RequestMapping("/api/teams/{teamId}/activities")
+@RequestMapping("/api/v1/teams/{teamId}/activities")
 public class TeamActivityController {
     private final TeamActivityService teamActivityService;
 

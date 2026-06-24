@@ -26,7 +26,7 @@ import java.util.UUID;
 @Slf4j
 @Validated
 @RestController
-@RequestMapping("/api/pictures")
+@RequestMapping("/api/v1/pictures")
 @RequiredArgsConstructor
 public class DeduplicationPictureController {
     private final DeduplicationPictureUploadService deduplicationUploadService;
