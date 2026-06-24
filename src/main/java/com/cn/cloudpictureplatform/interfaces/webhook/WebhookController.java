@@ -17,7 +17,7 @@ import com.cn.cloudpictureplatform.common.web.ApiResponse;
 import com.cn.cloudpictureplatform.common.web.PageResponse;
 import com.cn.cloudpictureplatform.domain.webhook.WebhookDelivery;
 import com.cn.cloudpictureplatform.domain.webhook.WebhookEndpoint;
-import com.cn.cloudpictureplatform.infrastructure.security.AppUserPrincipal;
+import com.cn.cloudpictureplatform.common.security.AppUserPrincipal;
 
 @RestController
 @RequestMapping("/api/v1/webhooks")

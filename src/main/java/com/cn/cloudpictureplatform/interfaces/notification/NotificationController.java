@@ -14,7 +14,7 @@ import com.cn.cloudpictureplatform.application.notification.NotificationService;
 import com.cn.cloudpictureplatform.common.web.ApiResponse;
 import com.cn.cloudpictureplatform.common.web.PageResponse;
 import com.cn.cloudpictureplatform.domain.notification.NotificationRecord;
-import com.cn.cloudpictureplatform.infrastructure.security.AppUserPrincipal;
+import com.cn.cloudpictureplatform.common.security.AppUserPrincipal;
 
 @RestController
 @RequestMapping("/api/v1/notifications")

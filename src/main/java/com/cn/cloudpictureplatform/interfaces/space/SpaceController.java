@@ -9,7 +9,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.cn.cloudpictureplatform.application.space.SpaceQuotaService;
 import com.cn.cloudpictureplatform.application.space.SpaceQuotaService.SpaceUsageResponse;
 import com.cn.cloudpictureplatform.common.web.ApiResponse;
-import com.cn.cloudpictureplatform.infrastructure.security.AppUserPrincipal;
+import com.cn.cloudpictureplatform.common.security.AppUserPrincipal;
 
 @RestController
 @RequestMapping("/api/v1/spaces")

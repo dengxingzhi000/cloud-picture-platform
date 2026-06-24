@@ -30,7 +30,7 @@ import com.cn.cloudpictureplatform.common.web.ApiResponse;
 import com.cn.cloudpictureplatform.common.web.PageResponse;
 import com.cn.cloudpictureplatform.domain.picture.ReviewStatus;
 import com.cn.cloudpictureplatform.domain.picture.Visibility;
-import com.cn.cloudpictureplatform.infrastructure.security.AppUserPrincipal;
+import com.cn.cloudpictureplatform.common.security.AppUserPrincipal;
 import com.cn.cloudpictureplatform.interfaces.picture.dto.EditorRealtimeEventDefinitionResponse;
 import com.cn.cloudpictureplatform.application.picture.dto.PictureTagCreateRequest;
 import com.cn.cloudpictureplatform.application.shared.dto.PictureDetailResponse;

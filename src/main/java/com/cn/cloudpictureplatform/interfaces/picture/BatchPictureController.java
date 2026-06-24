@@ -2,7 +2,7 @@ package com.cn.cloudpictureplatform.interfaces.picture;
 
 import com.cn.cloudpictureplatform.application.picture.BatchPictureService;
 import com.cn.cloudpictureplatform.common.web.ApiResponse;
-import com.cn.cloudpictureplatform.infrastructure.security.AppUserPrincipal;
+import com.cn.cloudpictureplatform.common.security.AppUserPrincipal;
 import com.cn.cloudpictureplatform.interfaces.picture.dto.BatchOperationRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;

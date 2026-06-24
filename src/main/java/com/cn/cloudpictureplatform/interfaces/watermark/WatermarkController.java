@@ -16,7 +16,7 @@ import com.cn.cloudpictureplatform.common.web.ApiResponse;
 import com.cn.cloudpictureplatform.domain.watermark.ExportPreset;
 import com.cn.cloudpictureplatform.domain.watermark.ExportTask;
 import com.cn.cloudpictureplatform.domain.watermark.WatermarkConfig;
-import com.cn.cloudpictureplatform.infrastructure.security.AppUserPrincipal;
+import com.cn.cloudpictureplatform.common.security.AppUserPrincipal;
 import com.cn.cloudpictureplatform.application.shared.dto.WatermarkConfigRequest;
 
 @RestController

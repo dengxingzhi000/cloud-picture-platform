@@ -23,7 +23,7 @@ import com.cn.cloudpictureplatform.application.picture.ModerationService;
 import com.cn.cloudpictureplatform.common.web.ApiResponse;
 import com.cn.cloudpictureplatform.common.web.PageResponse;
 import com.cn.cloudpictureplatform.domain.picture.ReviewStatus;
-import com.cn.cloudpictureplatform.infrastructure.security.AppUserPrincipal;
+import com.cn.cloudpictureplatform.common.security.AppUserPrincipal;
 import com.cn.cloudpictureplatform.application.shared.dto.AdminPictureSummary;
 import com.cn.cloudpictureplatform.common.util.CsvUtil;
 import com.cn.cloudpictureplatform.application.shared.dto.ModerationRecordResponse;

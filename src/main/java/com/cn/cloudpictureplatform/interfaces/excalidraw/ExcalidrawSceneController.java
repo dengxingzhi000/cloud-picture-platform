@@ -2,7 +2,7 @@ package com.cn.cloudpictureplatform.interfaces.excalidraw;
 
 import com.cn.cloudpictureplatform.application.excalidraw.ExcalidrawSceneService;
 import com.cn.cloudpictureplatform.common.web.ApiResponse;
-import com.cn.cloudpictureplatform.infrastructure.security.AppUserPrincipal;
+import com.cn.cloudpictureplatform.common.security.AppUserPrincipal;
 import com.cn.cloudpictureplatform.application.shared.dto.CreateExcalidrawSceneRequest;
 import com.cn.cloudpictureplatform.application.shared.dto.ExcalidrawSceneResponse;
 import com.cn.cloudpictureplatform.interfaces.excalidraw.dto.UpdateSnapshotRequest;

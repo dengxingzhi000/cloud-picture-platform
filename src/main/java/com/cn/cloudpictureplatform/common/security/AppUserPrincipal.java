@@ -1,4 +1,4 @@
-package com.cn.cloudpictureplatform.infrastructure.security;
+package com.cn.cloudpictureplatform.common.security;
 
 import java.util.Collection;
 import java.util.Set;

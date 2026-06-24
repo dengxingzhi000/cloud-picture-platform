@@ -4,7 +4,7 @@ import com.cn.cloudpictureplatform.common.web.ApiErrorCode;
 import com.cn.cloudpictureplatform.common.exception.ApiException;
 import com.cn.cloudpictureplatform.config.CollaborationProperties;
 import com.cn.cloudpictureplatform.config.JwtProperties;
-import com.cn.cloudpictureplatform.infrastructure.security.AppUserPrincipal;
+import com.cn.cloudpictureplatform.common.security.AppUserPrincipal;
 import com.cn.cloudpictureplatform.application.shared.dto.PictureCollaborationRoomResponse;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;

@@ -4,6 +4,7 @@ import java.time.Instant;
 import java.util.Collection;
 import java.util.UUID;
 
+import com.cn.cloudpictureplatform.application.notification.NotificationPort;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -12,7 +13,7 @@ import com.cn.cloudpictureplatform.websocket.dto.CollabMessage;
 import com.cn.cloudpictureplatform.websocket.dto.NotificationMessage;
 
 @Service
-public class NotificationPublisher {
+public class NotificationPublisher implements NotificationPort {
     private final SimpMessagingTemplate messagingTemplate;
     private final ObjectMapper objectMapper;
 

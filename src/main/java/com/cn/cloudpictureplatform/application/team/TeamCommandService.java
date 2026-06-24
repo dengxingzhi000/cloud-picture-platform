@@ -22,7 +22,7 @@ import com.cn.cloudpictureplatform.infrastructure.persistence.SpaceRepository;
 import com.cn.cloudpictureplatform.infrastructure.persistence.TeamMemberEventRepository;
 import com.cn.cloudpictureplatform.infrastructure.persistence.TeamMemberRepository;
 import com.cn.cloudpictureplatform.infrastructure.persistence.TeamRepository;
-import com.cn.cloudpictureplatform.websocket.NotificationPublisher;
+import com.cn.cloudpictureplatform.application.notification.NotificationPort;
 import java.time.Instant;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
@@ -37,7 +37,7 @@ public class TeamCommandService {
     private final TeamMemberEventRepository teamMemberEventRepository;
     private final SpaceRepository spaceRepository;
     private final AppUserRepository appUserRepository;
-    private final NotificationPublisher notificationPublisher;
+    private final NotificationPort NotificationPort;
 
     public TeamCommandService(
             TeamRepository teamRepository,
@@ -45,14 +45,14 @@ public class TeamCommandService {
             TeamMemberEventRepository teamMemberEventRepository,
             SpaceRepository spaceRepository,
             AppUserRepository appUserRepository,
-            NotificationPublisher notificationPublisher
+            NotificationPort NotificationPort
     ) {
         this.teamRepository = teamRepository;
         this.teamMemberRepository = teamMemberRepository;
         this.teamMemberEventRepository = teamMemberEventRepository;
         this.spaceRepository = spaceRepository;
         this.appUserRepository = appUserRepository;
-        this.notificationPublisher = notificationPublisher;
+        this.NotificationPort = NotificationPort;
     }
 
     public TeamResponse createTeam(UUID ownerId, TeamCreateRequest request) {
@@ -125,7 +125,7 @@ public class TeamCommandService {
         Team team = teamRepository.findById(teamId)
                 .orElseThrow(() -> new ApiException(ApiErrorCode.NOT_FOUND, "team not found"));
         AppUser inviterUser = appUserRepository.findById(inviterId).orElse(null);
-        notificationPublisher.notifyTeamInvite(
+        NotificationPort.notifyTeamInvite(
                 invitee.getUsername(), teamId, team.getName(),
                 inviterUser == null ? "unknown" : inviterUser.getUsername());
         return toMemberResponse(savedMember, invitee);

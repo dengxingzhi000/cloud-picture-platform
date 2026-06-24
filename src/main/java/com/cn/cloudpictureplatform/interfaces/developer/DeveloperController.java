@@ -15,7 +15,7 @@ import com.cn.cloudpictureplatform.application.apikey.ApiKeyService;
 import com.cn.cloudpictureplatform.application.apikey.ApiKeyService.CreatedApiKey;
 import com.cn.cloudpictureplatform.common.web.ApiResponse;
 import com.cn.cloudpictureplatform.domain.apikey.ApiKey;
-import com.cn.cloudpictureplatform.infrastructure.security.AppUserPrincipal;
+import com.cn.cloudpictureplatform.common.security.AppUserPrincipal;
 
 @RestController
 @RequestMapping("/api/v1/developer/keys")
