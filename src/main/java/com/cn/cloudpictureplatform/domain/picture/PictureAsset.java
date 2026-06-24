@@ -1,6 +1,8 @@
 package com.cn.cloudpictureplatform.domain.picture;
 
+import com.cn.cloudpictureplatform.common.exception.ApiException;
 import com.cn.cloudpictureplatform.common.model.BaseEntity;
+import com.cn.cloudpictureplatform.common.web.ApiErrorCode;
 import java.util.UUID;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -70,4 +72,69 @@ public class PictureAsset extends BaseEntity {
 
     @Column
     private Integer height;
+
+    // ── Aggregate Root 业务方法 ──────────────────────────────
+
+    public void changeVisibility(Visibility newVisibility) {
+        if (newVisibility == null) {
+            throw new ApiException(ApiErrorCode.BAD_REQUEST, "visibility cannot be null");
+        }
+        if (this.visibility == newVisibility) {
+            return;
+        }
+        if (newVisibility == Visibility.PUBLIC && this.reviewStatus != ReviewStatus.APPROVED
+                && this.reviewStatus != ReviewStatus.AUTO_APPROVED) {
+            this.reviewStatus = ReviewStatus.PENDING;
+        }
+        this.visibility = newVisibility;
+    }
+
+    public ReviewStatus approve() {
+        if (this.visibility != Visibility.PUBLIC) {
+            throw new ApiException(ApiErrorCode.BAD_REQUEST, "only public pictures can be reviewed");
+        }
+        ReviewStatus from = this.reviewStatus;
+        this.reviewStatus = ReviewStatus.APPROVED;
+        return from;
+    }
+
+    public ReviewStatus reject() {
+        if (this.visibility != Visibility.PUBLIC) {
+            throw new ApiException(ApiErrorCode.BAD_REQUEST, "only public pictures can be reviewed");
+        }
+        ReviewStatus from = this.reviewStatus;
+        this.reviewStatus = ReviewStatus.REJECTED;
+        return from;
+    }
+
+    public void autoApprove() {
+        this.reviewStatus = ReviewStatus.AUTO_APPROVED;
+    }
+
+    public void autoReject() {
+        this.reviewStatus = ReviewStatus.AUTO_REJECTED;
+    }
+
+    public boolean isPublic() {
+        return this.visibility == Visibility.PUBLIC;
+    }
+
+    public boolean isPendingReview() {
+        return this.reviewStatus == ReviewStatus.PENDING;
+    }
+
+    public boolean isApproved() {
+        return this.reviewStatus == ReviewStatus.APPROVED
+                || this.reviewStatus == ReviewStatus.AUTO_APPROVED;
+    }
+
+    public boolean isOwnedBy(UUID userId) {
+        return this.ownerId.equals(userId);
+    }
+
+    public void rename(String newName) {
+        if (newName != null && !newName.isBlank()) {
+            this.name = newName.trim();
+        }
+    }
 }

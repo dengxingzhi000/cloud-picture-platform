@@ -1,6 +1,6 @@
 CREATE TABLE excalidraw_scene (
     id UUID PRIMARY KEY,
-    picture_id UUID REFERENCES picture(id),
+    picture_id UUID REFERENCES picture_asset(id),
     scene_name VARCHAR(255) NOT NULL,
     snapshot_data TEXT,
     version BIGINT NOT NULL DEFAULT 0,

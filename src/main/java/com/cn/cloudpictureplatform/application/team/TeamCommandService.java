@@ -86,20 +86,18 @@ public class TeamCommandService {
         requireAdmin(member);
         Team team = teamRepository.findById(teamId)
                 .orElseThrow(() -> new ApiException(ApiErrorCode.NOT_FOUND, "team not found"));
-        String name = request.getName().trim();
-        String description = StringUtils.hasText(request.getDescription()) ? request.getDescription().trim() : null;
         String previousName = team.getName();
         String previousDescription = team.getDescription();
-        team.setName(name);
-        team.setDescription(description);
+        team.rename(request.getName());
+        team.updateDescription(request.getDescription());
         Team saved = teamRepository.save(team);
 
         UUID spaceId = spaceRepository.findByTeamId(teamId)
-                .map(space -> { space.setName(name); return spaceRepository.save(space); })
+                .map(space -> { space.setName(saved.getName()); return spaceRepository.save(space); })
                 .map(Space::getId).orElse(null);
 
         recordEvent(teamId, requesterId, requesterId, TeamMemberEventType.TEAM_UPDATED, member.getRole(),
-                buildTeamUpdateDetail(previousName, previousDescription, name, description));
+                buildTeamUpdateDetail(previousName, previousDescription, saved.getName(), saved.getDescription()));
         return TeamResponse.builder()
                 .id(saved.getId()).name(saved.getName()).description(saved.getDescription())
                 .ownerId(saved.getOwnerId()).spaceId(spaceId)

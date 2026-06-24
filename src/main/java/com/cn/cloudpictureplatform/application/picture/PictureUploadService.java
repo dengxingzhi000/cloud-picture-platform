@@ -18,6 +18,7 @@ import com.cn.cloudpictureplatform.domain.events.DomainEventBus;
 import com.cn.cloudpictureplatform.domain.events.PictureUploadedEvent;
 import com.cn.cloudpictureplatform.common.web.ApiErrorCode;
 import com.cn.cloudpictureplatform.application.shared.dto.PictureResponse;
+import com.cn.cloudpictureplatform.application.picture.PictureResponseConverter;
 import com.cn.cloudpictureplatform.application.space.SpacePermissionValidator;
 import com.cn.cloudpictureplatform.application.space.SpaceQuotaService;
 import com.cn.cloudpictureplatform.domain.picture.PictureAsset;
@@ -38,6 +39,7 @@ public class PictureUploadService {
     private final SpaceQuotaService spaceQuotaService;
     private final com.cn.cloudpictureplatform.application.search.SearchIndexService searchIndexService;
     private final DomainEventBus domainEventBus;
+    private final PictureResponseConverter responseConverter;
 
     public PictureUploadService(
             StorageService storageService,
@@ -46,7 +48,8 @@ public class PictureUploadService {
             SpacePermissionValidator spacePermissionValidator,
             SpaceQuotaService spaceQuotaService,
             com.cn.cloudpictureplatform.application.search.SearchIndexService searchIndexService,
-            DomainEventBus domainEventBus
+            DomainEventBus domainEventBus,
+            PictureResponseConverter responseConverter
     ) {
         this.storageService = storageService;
         this.pictureAssetRepository = pictureAssetRepository;
@@ -55,6 +58,7 @@ public class PictureUploadService {
         this.spaceQuotaService = spaceQuotaService;
         this.searchIndexService = searchIndexService;
         this.domainEventBus = domainEventBus;
+        this.responseConverter = responseConverter;
     }
 
     @Transactional
@@ -114,7 +118,7 @@ public class PictureUploadService {
                 space.getTeamId(), resolvedVisibility == Visibility.PUBLIC
         ));
 
-        return toResponse(saved);
+        return responseConverter.toResponse(saved);
     }
 
     private String buildStorageKey(UUID ownerId, String originalFilename) {
@@ -143,19 +147,5 @@ public class PictureUploadService {
         } catch (IOException | NoSuchAlgorithmException ex) {
             throw new ApiException(ApiErrorCode.SERVER_ERROR, "failed to read file");
         }
-    }
-
-    private PictureResponse toResponse(PictureAsset asset) {
-        return PictureResponse.builder()
-                .id(asset.getId())
-                .name(asset.getName())
-                .url(asset.getUrl())
-                .visibility(asset.getVisibility())
-                .reviewStatus(asset.getReviewStatus())
-                .sizeBytes(asset.getSizeBytes())
-                .width(asset.getWidth())
-                .height(asset.getHeight())
-                .contentType(asset.getContentType())
-                .build();
     }
 }

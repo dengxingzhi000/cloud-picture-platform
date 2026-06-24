@@ -45,23 +45,29 @@ public class ModerationService {
     private final ModerationRecordRepository moderationRecordRepository;
     private final AiModerationRecordRepository aiModerationRecordRepository;
     private final AppUserRepository appUserRepository;
+    private final com.cn.cloudpictureplatform.infrastructure.persistence.RolePermissionRepository rolePermissionRepository;
     private final com.cn.cloudpictureplatform.application.search.SearchIndexService searchIndexService;
     private final DomainEventBus domainEventBus;
+    private final PictureResponseConverter responseConverter;
 
     public ModerationService(
             PictureAssetRepository pictureAssetRepository,
             ModerationRecordRepository moderationRecordRepository,
             AiModerationRecordRepository aiModerationRecordRepository,
             AppUserRepository appUserRepository,
+            com.cn.cloudpictureplatform.infrastructure.persistence.RolePermissionRepository rolePermissionRepository,
             com.cn.cloudpictureplatform.application.search.SearchIndexService searchIndexService,
-            DomainEventBus domainEventBus
+            DomainEventBus domainEventBus,
+            PictureResponseConverter responseConverter
     ) {
         this.pictureAssetRepository = pictureAssetRepository;
         this.moderationRecordRepository = moderationRecordRepository;
         this.aiModerationRecordRepository = aiModerationRecordRepository;
         this.appUserRepository = appUserRepository;
+        this.rolePermissionRepository = rolePermissionRepository;
         this.searchIndexService = searchIndexService;
         this.domainEventBus = domainEventBus;
+        this.responseConverter = responseConverter;
     }
 
     @Transactional
@@ -70,16 +76,25 @@ public class ModerationService {
         if (status == null || status == ReviewStatus.PENDING) {
             throw new ApiException(ApiErrorCode.BAD_REQUEST, "invalid review status");
         }
+        Set<String> permissions = new java.util.HashSet<>(
+                rolePermissionRepository.findPermissionNamesByUserId(reviewerId));
+        if (!permissions.contains("admin:review")) {
+            throw new ApiException(ApiErrorCode.FORBIDDEN, "only admins can review pictures");
+        }
         PictureAsset asset = pictureAssetRepository.findById(pictureId)
                 .orElseThrow(() -> new ApiException(ApiErrorCode.NOT_FOUND, "picture not found"));
-        if (asset.getVisibility() != Visibility.PUBLIC) {
-            throw new ApiException(ApiErrorCode.BAD_REQUEST, "only public assets can be reviewed");
-        }
         if (asset.getReviewStatus() == status) {
             throw new ApiException(ApiErrorCode.BAD_REQUEST, "status already applied");
         }
-        ReviewStatus fromStatus = asset.getReviewStatus();
-        asset.setReviewStatus(status);
+        ReviewStatus fromStatus;
+        if (status == ReviewStatus.APPROVED) {
+            fromStatus = asset.approve();
+        } else if (status == ReviewStatus.REJECTED) {
+            fromStatus = asset.reject();
+        } else {
+            fromStatus = asset.getReviewStatus();
+            asset.setReviewStatus(status);
+        }
         PictureAsset saved = pictureAssetRepository.save(asset);
 
         ModerationRecord record = ModerationRecord.builder()
@@ -98,15 +113,15 @@ public class ModerationService {
                 status == ReviewStatus.APPROVED, record.getReason()
         ));
 
-        return toResponse(saved);
+        return responseConverter.toResponse(saved);
     }
 
     @Transactional
     public void autoApprove(UUID pictureId, String provider) {
         PictureAsset asset = pictureAssetRepository.findById(pictureId)
                 .orElseThrow(() -> new ApiException(ApiErrorCode.NOT_FOUND, "picture not found"));
-        asset.setReviewStatus(ReviewStatus.AUTO_APPROVED);
-        asset = pictureAssetRepository.save(asset);
+        asset.autoApprove();
+        pictureAssetRepository.save(asset);
         searchIndexService.enqueuePicture(pictureId);
         domainEventBus.publish(new PictureReviewedEvent(
                 pictureId, asset.getName(), asset.getOwnerId(), true, "auto-approved by " + provider));
@@ -116,8 +131,8 @@ public class ModerationService {
     public void autoReject(UUID pictureId, String reason, String provider) {
         PictureAsset asset = pictureAssetRepository.findById(pictureId)
                 .orElseThrow(() -> new ApiException(ApiErrorCode.NOT_FOUND, "picture not found"));
-        asset.setReviewStatus(ReviewStatus.AUTO_REJECTED);
-        asset = pictureAssetRepository.save(asset);
+        asset.autoReject();
+        pictureAssetRepository.save(asset);
         searchIndexService.enqueuePicture(pictureId);
         domainEventBus.publish(new PictureReviewedEvent(
                 pictureId, asset.getName(), asset.getOwnerId(), false, reason));
@@ -227,15 +242,6 @@ public class ModerationService {
         Specification<ModerationRecord> spec = buildModerationSpec(pictureId, reviewerId, fromStatus, toStatus, reviewedAfter, reviewedBefore);
         var result = moderationRecordRepository.findAll(spec, pageable);
         return toModerationResponses(result.getContent());
-    }
-
-    private PictureResponse toResponse(PictureAsset asset) {
-        return PictureResponse.builder()
-                .id(asset.getId()).name(asset.getName()).url(asset.getUrl())
-                .visibility(asset.getVisibility()).reviewStatus(asset.getReviewStatus())
-                .sizeBytes(asset.getSizeBytes()).width(asset.getWidth()).height(asset.getHeight())
-                .contentType(asset.getContentType())
-                .build();
     }
 
     private Map<UUID, AppUser> buildUserMap(List<UUID> userIds) {

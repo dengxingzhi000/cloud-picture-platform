@@ -124,9 +124,9 @@ public class WebhookService {
         }
     }
 
-    private static String listToJson(List<String> events) {
+    private String listToJson(List<String> events) {
         try {
-            return new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(events);
+            return objectMapper.writeValueAsString(events);
         } catch (Exception e) {
             return "[]";
         }

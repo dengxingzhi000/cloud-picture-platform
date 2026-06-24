@@ -1,6 +1,8 @@
 package com.cn.cloudpictureplatform.domain.team;
 
+import com.cn.cloudpictureplatform.common.exception.ApiException;
 import com.cn.cloudpictureplatform.common.model.BaseEntity;
+import com.cn.cloudpictureplatform.common.web.ApiErrorCode;
 import java.util.UUID;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -30,4 +32,29 @@ public class Team extends BaseEntity {
 
     @Column(length = 200)
     private String description;
+
+    // ── Aggregate Root 业务方法 ──────────────────────────────
+
+    public void rename(String newName) {
+        if (newName == null || newName.isBlank()) {
+            throw new ApiException(ApiErrorCode.BAD_REQUEST, "team name is required");
+        }
+        this.name = newName.trim();
+    }
+
+    public void updateDescription(String newDescription) {
+        this.description = (newDescription != null && !newDescription.isBlank())
+                ? newDescription.trim() : null;
+    }
+
+    public void transferOwnership(UUID newOwnerId) {
+        if (newOwnerId == null) {
+            throw new ApiException(ApiErrorCode.BAD_REQUEST, "new owner ID is required");
+        }
+        this.ownerId = newOwnerId;
+    }
+
+    public boolean isOwnedBy(UUID userId) {
+        return this.ownerId.equals(userId);
+    }
 }
