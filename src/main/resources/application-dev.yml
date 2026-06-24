@@ -1,23 +1,5 @@
-# ── Development profile: H2 in-memory database ─────────
-# Activate with: --spring.profiles.active=dev
-# Or set SPRING_PROFILES_ACTIVE=dev environment variable
-
 spring:
-  autoconfigure:
-    exclude:
-      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
-      - org.springframework.boot.autoconfigure.amqp.RabbitAutoConfiguration
-  datasource:
-    url: jdbc:h2:mem:cloud_picture;MODE=PostgreSQL;DB_CLOSE_DELAY=-1
-    username: sa
-    password:
-    driver-class-name: org.h2.Driver
   jpa:
+    show-sql: true
     hibernate:
       ddl-auto: update
-    show-sql: true
-  cache:
-    type: none
-  flyway:
-    enabled: true
-    baseline-on-migrate: false

@@ -3,7 +3,10 @@ package com.cn.cloudpictureplatform.application.excalidraw;
 import com.cn.cloudpictureplatform.common.exception.ApiException;
 import com.cn.cloudpictureplatform.domain.excalidraw.ExcalidrawScene;
 import com.cn.cloudpictureplatform.domain.picture.PictureAsset;
+import com.cn.cloudpictureplatform.domain.space.Space;
+import com.cn.cloudpictureplatform.domain.space.SpaceType;
 import com.cn.cloudpictureplatform.infrastructure.persistence.PictureAssetRepository;
+import com.cn.cloudpictureplatform.infrastructure.persistence.SpaceRepository;
 import com.cn.cloudpictureplatform.infrastructure.persistence.excalidraw.ExcalidrawSceneRepository;
 import com.cn.cloudpictureplatform.infrastructure.persistence.excalidraw.ExcalidrawFileRepository;
 import com.cn.cloudpictureplatform.interfaces.excalidraw.dto.CreateExcalidrawSceneRequest;
@@ -34,11 +37,14 @@ class ExcalidrawSceneServiceTests {
     @Mock
     private PictureAssetRepository pictureAssetRepository;
 
+    @Mock
+    private SpaceRepository spaceRepository;
+
     private ExcalidrawSceneService service;
 
     @BeforeEach
     void setUp() {
-        service = new ExcalidrawSceneService(sceneRepository, fileRepository, pictureAssetRepository);
+        service = new ExcalidrawSceneService(sceneRepository, fileRepository, pictureAssetRepository, spaceRepository);
     }
 
     @Test
@@ -87,6 +93,11 @@ class ExcalidrawSceneServiceTests {
                 .build();
         whiteboardPicture.setId(UUID.randomUUID());
 
+        Space personalSpace = Space.builder()
+                .ownerId(userId).type(SpaceType.PERSONAL).name("Personal")
+                .quotaBytes(10L * 1024 * 1024 * 1024).usedBytes(0L).build();
+        personalSpace.setId(UUID.randomUUID());
+
         ExcalidrawScene savedScene = ExcalidrawScene.builder()
                 .pictureId(whiteboardPicture.getId())
                 .sceneName("Whiteboard")
@@ -94,6 +105,8 @@ class ExcalidrawSceneServiceTests {
                 .build();
         savedScene.setId(UUID.randomUUID());
 
+        when(spaceRepository.findFirstByOwnerIdAndType(userId, SpaceType.PERSONAL))
+                .thenReturn(Optional.of(personalSpace));
         when(pictureAssetRepository.save(any(PictureAsset.class))).thenReturn(whiteboardPicture);
         when(sceneRepository.save(any(ExcalidrawScene.class))).thenReturn(savedScene);
 

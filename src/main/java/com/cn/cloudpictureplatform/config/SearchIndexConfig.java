@@ -14,12 +14,12 @@ public class SearchIndexConfig {
     @Bean(name = "searchIndexTaskExecutor")
     public TaskExecutor searchIndexTaskExecutor() {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
-        executor.setCorePoolSize(1);
-        executor.setMaxPoolSize(2);
-        executor.setQueueCapacity(500);
+        executor.setCorePoolSize(2);
+        executor.setMaxPoolSize(8);
+        executor.setQueueCapacity(1000);
         executor.setThreadNamePrefix("search-index-");
         executor.setRejectedExecutionHandler((runnable, pool) ->
-                log.warn("Search index queue is full (capacity=500). Task rejected: {}", runnable)
+                log.warn("Search index queue is full. Task rejected.")
         );
         executor.initialize();
         return executor;

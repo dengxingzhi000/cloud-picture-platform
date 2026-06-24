@@ -25,8 +25,10 @@ import com.cn.cloudpictureplatform.infrastructure.persistence.RolePermissionRepo
 import com.cn.cloudpictureplatform.infrastructure.persistence.RoleRepository;
 import com.cn.cloudpictureplatform.infrastructure.persistence.SpaceRepository;
 import com.cn.cloudpictureplatform.infrastructure.persistence.UserRoleRepository;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.JdbcTemplate;
 
+@Slf4j
 @Component
 @ConditionalOnProperty(prefix = "app.bootstrap.admin", name = "enabled", havingValue = "true")
 public class DataInitializer implements ApplicationRunner {
@@ -225,7 +227,7 @@ public class DataInitializer implements ApplicationRunner {
                 roleId, permissionId
             );
         } catch (Exception e) {
-            System.err.println("Warning: Failed to create role_permission: " + e.getMessage());
+            log.warn("Failed to create role_permission: {}", e.getMessage());
         }
     }
 
@@ -259,7 +261,7 @@ public class DataInitializer implements ApplicationRunner {
             );
         } catch (Exception e) {
             // If creation fails (e.g., concurrent insert), log and continue
-            System.err.println("Warning: Failed to create menu " + code + ": " + e.getMessage());
+            log.warn("Failed to create menu {}: {}", code, e.getMessage());
         }
     }
 
@@ -287,7 +289,7 @@ public class DataInitializer implements ApplicationRunner {
                 roleId, menuId
             );
         } catch (Exception e) {
-            System.err.println("Warning: Failed to create role_menu: " + e.getMessage());
+            log.warn("Failed to create role_menu: {}", e.getMessage());
         }
     }
 }

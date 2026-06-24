@@ -69,7 +69,7 @@ public class ExportProcessingService {
                     .orElseThrow(() -> new ApiException(ApiErrorCode.NOT_FOUND, "picture not found"));
 
             if (task.getPresetId() == null) {
-                failTask(task, "presetId is required");
+                markFailed(task, "presetId is required");
                 return;
             }
 
@@ -84,7 +84,7 @@ public class ExportProcessingService {
                 original = ImageIO.read(in);
             }
             if (original == null) {
-                failTask(task, "failed to read image: " + picture.getStorageKey());
+                markFailed(task, "failed to read image: " + picture.getStorageKey());
                 return;
             }
 
@@ -109,7 +109,7 @@ public class ExportProcessingService {
             log.info("Export completed: taskId={} pictureId={} url={}", task.getId(), task.getPictureId(), result.getUrl());
         } catch (Exception e) {
             log.error("Export failed: taskId={} pictureId={}", task.getId(), task.getPictureId(), e);
-            failTask(task, e.getMessage());
+            markFailed(task, e.getMessage());
         }
     }
 
@@ -176,8 +176,7 @@ public class ExportProcessingService {
         };
     }
 
-    @Transactional
-    protected void failTask(ExportTask task, String error) {
+    private void markFailed(ExportTask task, String error) {
         task.setStatus("FAILED");
         task.setErrorMessage(error);
         task.setCompletedAt(Instant.now());

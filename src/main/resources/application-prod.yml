@@ -1,79 +1,17 @@
-server:
-  port: 8080
-
-spring:
-  application:
-    name: cloud-picture-platform
-  datasource:
-    url: jdbc:postgresql://${DB_HOST:192.168.80.132}:${DB_PORT:5432}/${DB_NAME:cloud_picture_platform}
-    username: ${DB_USERNAME:admin}
-    password: ${DB_PASSWORD:123456}
-    driver-class-name: org.postgresql.Driver
-  jpa:
-    open-in-view: false
-    hibernate:
-      ddl-auto: update
-    show-sql: true
-    properties:
-      hibernate:
-        dialect: org.hibernate.dialect.PostgreSQLDialect
-  flyway:
-    enabled: true
-    locations: classpath:db/migration
-    baseline-on-migrate: true
-    baseline-version: 0
-  data:
-    redis:
-      host: 192.168.80.132
-      port: 6379
-  cache:
-    type: redis
-    redis:
-      cache-null-values: false
-  servlet:
-    multipart:
-      max-file-size: 50MB
-      max-request-size: 200MB
-
 app:
-  bootstrap:
-    admin:
-      enabled: true
-  storage:
-    provider: local
-    local:
-      root: data/uploads
-    cos:
-      secret-id: ${COS_SECRET_ID:your-secret-id-here}
-      secret-key: ${COS_SECRET_KEY:your-secret-key-here}
-      region: na-siliconvalley
-      bucket: costorage-1320249760
-      endpoint:
-      base-url: http://costorage.auditoryworks.co/
-      prefix:
-  websocket:
-    endpoint: /ws
-  collaboration:
-    provider: yjs-websocket
-    room-prefix: picture
-    public-url: ${COLLAB_SERVER_URL:ws://localhost:1234}
-    room-token-ttl-seconds: 900
-    awareness-enabled: true
-    indexed-db-recommended: true
   security:
     jwt:
-      issuer: cloud-picture-platform
-      secret: change-me-change-me-change-me-change-me
-      access-token-ttl-seconds: 7200
+      secret: ${JWT_SECRET}
+  storage:
+    provider: ${STORAGE_PROVIDER:cos}
 
-management:
-  endpoints:
-    web:
-      exposure:
-        include: health,info,metrics,caches,prometheus
-  health:
+spring:
+  jpa:
+    show-sql: false
+    hibernate:
+      ddl-auto: validate
+  datasource:
+    password: ${DB_PASSWORD}
+  data:
     redis:
-      enabled: true
-  metrics:
-    enable:
-      cache: true
+      host: ${REDIS_HOST}
