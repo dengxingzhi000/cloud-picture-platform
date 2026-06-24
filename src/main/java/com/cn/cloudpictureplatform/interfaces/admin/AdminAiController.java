@@ -2,7 +2,7 @@ package com.cn.cloudpictureplatform.interfaces.admin;
 
 import com.cn.cloudpictureplatform.application.admin.AiStatsService;
 import com.cn.cloudpictureplatform.common.web.ApiResponse;
-import com.cn.cloudpictureplatform.interfaces.admin.dto.AiStatsResponse;
+import com.cn.cloudpictureplatform.application.shared.dto.AiStatsResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;

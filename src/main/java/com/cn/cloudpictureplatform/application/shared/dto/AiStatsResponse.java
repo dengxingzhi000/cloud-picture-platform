@@ -1,4 +1,4 @@
-package com.cn.cloudpictureplatform.interfaces.admin.dto;
+package com.cn.cloudpictureplatform.application.shared.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;

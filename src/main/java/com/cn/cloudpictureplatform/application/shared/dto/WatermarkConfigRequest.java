@@ -1,4 +1,4 @@
-package com.cn.cloudpictureplatform.interfaces.watermark.dto;
+package com.cn.cloudpictureplatform.application.shared.dto;
 
 import lombok.Getter;
 import lombok.NoArgsConstructor;

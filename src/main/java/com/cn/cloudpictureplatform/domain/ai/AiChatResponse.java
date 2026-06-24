@@ -1,4 +1,4 @@
-package com.cn.cloudpictureplatform.infrastructure.ai.dto;
+package com.cn.cloudpictureplatform.domain.ai;
 
 import java.util.List;
 

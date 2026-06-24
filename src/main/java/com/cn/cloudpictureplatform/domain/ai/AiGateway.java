@@ -1,9 +1,7 @@
-package com.cn.cloudpictureplatform.infrastructure.ai.gateway;
+package com.cn.cloudpictureplatform.domain.ai;
 
 import java.util.Optional;
 import java.util.UUID;
-import com.cn.cloudpictureplatform.infrastructure.ai.dto.AiChatRequest;
-import com.cn.cloudpictureplatform.infrastructure.ai.dto.AiChatResponse;
 
 public interface AiGateway {
 

@@ -1,4 +1,4 @@
-package com.cn.cloudpictureplatform.interfaces.album.dto;
+package com.cn.cloudpictureplatform.application.shared.dto;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;

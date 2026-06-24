@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.cn.cloudpictureplatform.application.admin.AdminUserService;
 import com.cn.cloudpictureplatform.common.web.ApiResponse;
 import com.cn.cloudpictureplatform.common.web.PageResponse;
-import com.cn.cloudpictureplatform.interfaces.admin.dto.AdminUserSummary;
+import com.cn.cloudpictureplatform.application.shared.dto.AdminUserSummary;
 import lombok.RequiredArgsConstructor;
 
 @Validated

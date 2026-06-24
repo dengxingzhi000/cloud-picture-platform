@@ -1,4 +1,4 @@
-package com.cn.cloudpictureplatform.interfaces.excalidraw.dto;
+package com.cn.cloudpictureplatform.application.shared.dto;
 
 import lombok.Data;
 

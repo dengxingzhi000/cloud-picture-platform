@@ -14,8 +14,8 @@ import com.cn.cloudpictureplatform.domain.picture.PictureComment;
 import com.cn.cloudpictureplatform.domain.user.AppUser;
 import com.cn.cloudpictureplatform.infrastructure.persistence.AppUserRepository;
 import com.cn.cloudpictureplatform.infrastructure.persistence.PictureCommentRepository;
-import com.cn.cloudpictureplatform.interfaces.picture.dto.CommentCreateRequest;
-import com.cn.cloudpictureplatform.interfaces.picture.dto.CommentResponse;
+import com.cn.cloudpictureplatform.application.shared.dto.CommentCreateRequest;
+import com.cn.cloudpictureplatform.application.shared.dto.CommentResponse;
 
 @Service
 @Transactional(readOnly = true)

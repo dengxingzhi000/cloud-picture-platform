@@ -7,9 +7,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import com.cn.cloudpictureplatform.common.web.ApiResponse;
-import com.cn.cloudpictureplatform.infrastructure.ai.dto.AiChatRequest;
-import com.cn.cloudpictureplatform.infrastructure.ai.dto.AiChatResponse;
-import com.cn.cloudpictureplatform.infrastructure.ai.gateway.AiGateway;
+import com.cn.cloudpictureplatform.domain.ai.AiChatRequest;
+import com.cn.cloudpictureplatform.domain.ai.AiChatResponse;
+import com.cn.cloudpictureplatform.domain.ai.AiGateway;
 import com.cn.cloudpictureplatform.infrastructure.security.AppUserPrincipal;
 
 @RestController

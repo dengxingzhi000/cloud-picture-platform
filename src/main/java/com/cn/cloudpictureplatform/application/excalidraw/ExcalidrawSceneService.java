@@ -12,8 +12,8 @@ import com.cn.cloudpictureplatform.infrastructure.persistence.PictureAssetReposi
 import com.cn.cloudpictureplatform.infrastructure.persistence.SpaceRepository;
 import com.cn.cloudpictureplatform.infrastructure.persistence.excalidraw.ExcalidrawSceneRepository;
 import com.cn.cloudpictureplatform.infrastructure.persistence.excalidraw.ExcalidrawFileRepository;
-import com.cn.cloudpictureplatform.interfaces.excalidraw.dto.CreateExcalidrawSceneRequest;
-import com.cn.cloudpictureplatform.interfaces.excalidraw.dto.ExcalidrawSceneResponse;
+import com.cn.cloudpictureplatform.application.shared.dto.CreateExcalidrawSceneRequest;
+import com.cn.cloudpictureplatform.application.shared.dto.ExcalidrawSceneResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

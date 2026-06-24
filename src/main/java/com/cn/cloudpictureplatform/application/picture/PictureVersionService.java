@@ -10,7 +10,7 @@ import com.cn.cloudpictureplatform.domain.picture.PictureAsset;
 import com.cn.cloudpictureplatform.domain.picture.PictureVersion;
 import com.cn.cloudpictureplatform.infrastructure.persistence.PictureAssetRepository;
 import com.cn.cloudpictureplatform.infrastructure.persistence.PictureVersionRepository;
-import com.cn.cloudpictureplatform.interfaces.picture.dto.PictureVersionResponse;
+import com.cn.cloudpictureplatform.application.shared.dto.PictureVersionResponse;
 
 @Service
 @Transactional(readOnly = true)
