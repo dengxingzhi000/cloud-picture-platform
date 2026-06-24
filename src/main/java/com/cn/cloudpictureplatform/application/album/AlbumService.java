@@ -12,8 +12,8 @@ import com.cn.cloudpictureplatform.domain.album.AlbumPicture;
 import com.cn.cloudpictureplatform.domain.picture.Visibility;
 import com.cn.cloudpictureplatform.infrastructure.persistence.AlbumPictureRepository;
 import com.cn.cloudpictureplatform.infrastructure.persistence.AlbumRepository;
-import com.cn.cloudpictureplatform.interfaces.album.dto.AlbumCreateRequest;
-import com.cn.cloudpictureplatform.interfaces.album.dto.AlbumResponse;
+import com.cn.cloudpictureplatform.application.shared.dto.AlbumCreateRequest;
+import com.cn.cloudpictureplatform.application.shared.dto.AlbumResponse;
 
 @Service
 @Transactional(readOnly = true)

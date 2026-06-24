@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.cn.cloudpictureplatform.application.picture.PictureVersionService;
 import com.cn.cloudpictureplatform.common.web.ApiResponse;
 import com.cn.cloudpictureplatform.infrastructure.security.AppUserPrincipal;
-import com.cn.cloudpictureplatform.interfaces.picture.dto.PictureVersionResponse;
+import com.cn.cloudpictureplatform.application.shared.dto.PictureVersionResponse;
 
 @RestController
 @RequestMapping("/api/v1/pictures/{pictureId}/versions")

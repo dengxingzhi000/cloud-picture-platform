@@ -5,7 +5,7 @@ import com.cn.cloudpictureplatform.domain.picture.ReviewStatus;
 import com.cn.cloudpictureplatform.infrastructure.persistence.AiCallAuditRepository;
 import com.cn.cloudpictureplatform.infrastructure.persistence.AiModerationRecordRepository;
 import com.cn.cloudpictureplatform.infrastructure.persistence.PictureAssetRepository;
-import com.cn.cloudpictureplatform.interfaces.admin.dto.AiStatsResponse;
+import com.cn.cloudpictureplatform.application.shared.dto.AiStatsResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;

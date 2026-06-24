@@ -21,7 +21,7 @@ import com.cn.cloudpictureplatform.domain.user.AppUser;
 import com.cn.cloudpictureplatform.domain.user.UserStatus;
 import com.cn.cloudpictureplatform.infrastructure.persistence.AppUserRepository;
 import com.cn.cloudpictureplatform.infrastructure.persistence.UserRoleRepository;
-import com.cn.cloudpictureplatform.interfaces.admin.dto.AdminUserSummary;
+import com.cn.cloudpictureplatform.application.shared.dto.AdminUserSummary;
 
 @Service
 public class AdminUserService {

@@ -15,8 +15,8 @@ import org.springframework.web.bind.annotation.RestController;
 import com.cn.cloudpictureplatform.application.picture.PictureCommentService;
 import com.cn.cloudpictureplatform.common.web.ApiResponse;
 import com.cn.cloudpictureplatform.infrastructure.security.AppUserPrincipal;
-import com.cn.cloudpictureplatform.interfaces.picture.dto.CommentCreateRequest;
-import com.cn.cloudpictureplatform.interfaces.picture.dto.CommentResponse;
+import com.cn.cloudpictureplatform.application.shared.dto.CommentCreateRequest;
+import com.cn.cloudpictureplatform.application.shared.dto.CommentResponse;
 
 @RestController
 @RequestMapping("/api/v1/pictures/{pictureId}/comments")

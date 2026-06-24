@@ -12,7 +12,7 @@ import com.cn.cloudpictureplatform.domain.watermark.WatermarkConfig;
 import com.cn.cloudpictureplatform.infrastructure.persistence.ExportPresetRepository;
 import com.cn.cloudpictureplatform.infrastructure.persistence.ExportTaskRepository;
 import com.cn.cloudpictureplatform.infrastructure.persistence.WatermarkConfigRepository;
-import com.cn.cloudpictureplatform.interfaces.watermark.dto.WatermarkConfigRequest;
+import com.cn.cloudpictureplatform.application.shared.dto.WatermarkConfigRequest;
 
 @Service
 @Transactional(readOnly = true)

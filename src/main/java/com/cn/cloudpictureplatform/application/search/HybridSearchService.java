@@ -12,7 +12,7 @@ import org.springframework.util.StringUtils;
 import com.cn.cloudpictureplatform.application.shared.dto.PictureSummary;
 import com.cn.cloudpictureplatform.common.web.PageResponse;
 import com.cn.cloudpictureplatform.domain.search.PictureSearchDocument;
-import com.cn.cloudpictureplatform.infrastructure.ai.gateway.AiGateway;
+import com.cn.cloudpictureplatform.domain.ai.AiGateway;
 import com.cn.cloudpictureplatform.infrastructure.persistence.PictureSearchDocumentRepository;
 
 @Service

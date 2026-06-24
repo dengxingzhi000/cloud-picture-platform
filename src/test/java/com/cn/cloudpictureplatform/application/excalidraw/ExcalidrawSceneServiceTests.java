@@ -9,8 +9,8 @@ import com.cn.cloudpictureplatform.infrastructure.persistence.PictureAssetReposi
 import com.cn.cloudpictureplatform.infrastructure.persistence.SpaceRepository;
 import com.cn.cloudpictureplatform.infrastructure.persistence.excalidraw.ExcalidrawSceneRepository;
 import com.cn.cloudpictureplatform.infrastructure.persistence.excalidraw.ExcalidrawFileRepository;
-import com.cn.cloudpictureplatform.interfaces.excalidraw.dto.CreateExcalidrawSceneRequest;
-import com.cn.cloudpictureplatform.interfaces.excalidraw.dto.ExcalidrawSceneResponse;
+import com.cn.cloudpictureplatform.application.shared.dto.CreateExcalidrawSceneRequest;
+import com.cn.cloudpictureplatform.application.shared.dto.ExcalidrawSceneResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

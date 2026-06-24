@@ -1,4 +1,4 @@
-package com.cn.cloudpictureplatform.interfaces.picture.dto;
+package com.cn.cloudpictureplatform.application.shared.dto;
 
 import java.time.Instant;
 import java.util.UUID;

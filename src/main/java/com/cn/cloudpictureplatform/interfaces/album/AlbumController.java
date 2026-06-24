@@ -14,8 +14,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import com.cn.cloudpictureplatform.application.album.AlbumService;
 import com.cn.cloudpictureplatform.common.web.ApiResponse;
-import com.cn.cloudpictureplatform.interfaces.album.dto.AlbumCreateRequest;
-import com.cn.cloudpictureplatform.interfaces.album.dto.AlbumResponse;
+import com.cn.cloudpictureplatform.application.shared.dto.AlbumCreateRequest;
+import com.cn.cloudpictureplatform.application.shared.dto.AlbumResponse;
 
 @RestController
 @RequestMapping("/api/v1/albums")
