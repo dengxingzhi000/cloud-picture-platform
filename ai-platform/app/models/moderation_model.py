@@ -10,6 +10,20 @@ logger = logging.getLogger(__name__)
 
 ALIYUN_MODERATION_URL = "https://green-cip.cn-beijing.aliyuncs.com/sgreen/msg/v1/textmod"
 
+DEEPSEEK_MODERATION_PROMPT = """你是一个内容审核专家。请判断以下文本内容是否违规。
+
+审核维度：
+- 暴力血腥
+- 色情低俗
+- 政治敏感
+- 违法信息
+- 仇恨歧视
+- 欺诈诈骗
+- 未成年人保护
+
+请严格以JSON格式回复，不要包含其他内容：
+{"safe": true/false, "confidence": 0.0-1.0, "violations": ["类别1", "类别2"], "reason": "简要说明"}"""
+
 
 class ModerationModel(BaseAiModel):
     def __init__(self, provider: str = "aliyun", aliyun_ak: str = "", aliyun_sk: str = ""):
@@ -34,12 +48,61 @@ class ModerationModel(BaseAiModel):
     async def moderate_text(self, text: str) -> dict:
         if self._provider == "aliyun":
             return await self._moderate_aliyun(text)
+        if self._provider == "deepseek":
+            return await self._moderate_deepseek(text)
         return await self._moderate_openai(text)
 
     async def moderate_image(self, image_url: str) -> dict:
         if self._provider == "aliyun":
             return await self._moderate_aliyun_image(image_url)
         return {"safe": True, "provider": self._provider, "note": "image moderation not implemented"}
+
+    async def _moderate_deepseek(self, text: str) -> dict:
+        from app.config import get_config
+
+        config = get_config()
+        if not config.deepseek_api_key:
+            return {"safe": True, "provider": "deepseek", "note": "api key not configured"}
+
+        messages = [
+            {"role": "system", "content": DEEPSEEK_MODERATION_PROMPT},
+            {"role": "user", "content": text},
+        ]
+
+        try:
+            async with httpx.AsyncClient(timeout=30) as client:
+                resp = await client.post(
+                    f"{config.deepseek_base_url}/v1/chat/completions",
+                    headers={
+                        "Authorization": f"Bearer {config.deepseek_api_key}",
+                        "Content-Type": "application/json",
+                    },
+                    json={
+                        "model": config.deepseek_model,
+                        "messages": messages,
+                        "temperature": 0.1,
+                        "max_tokens": 512,
+                    },
+                )
+                resp.raise_for_status()
+                data = resp.json()
+
+            content = data["choices"][0]["message"]["content"]
+            content = content.strip()
+            if content.startswith("```"):
+                content = content.split("\n", 1)[1].rsplit("```", 1)[0].strip()
+
+            result = json.loads(content)
+            return {
+                "safe": result.get("safe", True),
+                "confidence": result.get("confidence", 0.0),
+                "violations": result.get("violations", []),
+                "reason": result.get("reason", ""),
+                "provider": "deepseek",
+            }
+        except Exception as e:
+            logger.exception("DeepSeek moderation failed")
+            return {"safe": True, "provider": "deepseek", "error": str(e)}
 
     async def _moderate_aliyun(self, text: str) -> dict:
         import hmac

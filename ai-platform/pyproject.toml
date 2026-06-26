@@ -15,4 +15,6 @@ dependencies = [
     "numpy>=1.26",
     "torch>=2.0",
     "open-clip-torch>=2.29",
+    "transformers>=4.40",
+    "ultralytics>=8.2",
 ]

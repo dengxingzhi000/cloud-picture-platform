@@ -17,14 +17,21 @@ class TaggingWorker(BaseWorker):
         return "ai.tagging.result"
 
     async def process(self, data: dict) -> Optional[dict]:
-        image_url = data.get("image_url", "")
+        image_url = data.get("image_url") or data.get("imageUrl", "")
+        picture_id = data.get("pictureId", "")
         top_k = data.get("top_k", 5)
         custom_labels = data.get("custom_labels")
-        tags, cached = await tagging_service.tag_image(
+
+        tags, description, detections, cached = await tagging_service.tag_image_combined(
             image_url=image_url, top_k=top_k, custom_labels=custom_labels,
         )
+
         return {
-            "image_url": image_url,
+            "pictureId": picture_id,
+            "success": True,
             "tags": tags,
+            "description": description,
+            "detections": detections,
+            "provider": "combined",
             "cached": cached,
         }

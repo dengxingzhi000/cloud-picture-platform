@@ -1,7 +1,8 @@
 import logging
 from app.models.clip_model import ClipModel
 from app.models.moderation_model import ModerationModel
-from app.models.qwen_vl_model import QwenVlModel
+from app.models.florence_model import FlorenceModel
+from app.models.yolo_model import YoloModel
 
 logger = logging.getLogger(__name__)
 
@@ -33,20 +34,34 @@ class ModelRegistry:
             logger.info("Moderation model initialized")
         return self._models["moderation"]
 
-    def get_qwen_vl(self) -> QwenVlModel:
-        if "qwen_vl" not in self._models:
-            model = QwenVlModel(
-                model_path=self._config.qwen_vl_path,
+    def get_florence(self) -> FlorenceModel:
+        if "florence" not in self._models:
+            model = FlorenceModel(
+                model_name=self._config.florence_model_name,
             )
-            self._models["qwen_vl"] = model
-            logger.info("Qwen-VL model initialized")
-        return self._models["qwen_vl"]
+            if self._config.florence_enabled:
+                model.load()
+            self._models["florence"] = model
+            logger.info("Florence model initialized")
+        return self._models["florence"]
+
+    def get_yolo(self) -> YoloModel:
+        if "yolo" not in self._models:
+            model = YoloModel(
+                model_name=self._config.yolo_model_name,
+                confidence_threshold=self._config.yolo_confidence_threshold,
+            )
+            if self._config.yolo_enabled:
+                model.load()
+            self._models["yolo"] = model
+            logger.info("YOLO model initialized")
+        return self._models["yolo"]
 
     def health_report(self) -> dict:
         report = {}
         for name, model in self._models.items():
             report[name] = model.health_check()
-        for name in ("clip", "moderation", "qwen_vl"):
+        for name in ("clip", "moderation", "florence", "yolo"):
             if name not in self._models:
                 report[name] = {"ready": False, "loaded": False}
         return report

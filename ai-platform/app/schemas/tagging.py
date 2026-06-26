@@ -19,3 +19,12 @@ class TaggingResponse(BaseModel):
     tags: list[TagItem]
     model: str
     cached: bool = False
+
+
+class CombinedTaggingResponse(BaseModel):
+    image_url: str
+    tags: list[TagItem]
+    model: str
+    cached: bool = False
+    description: Optional[str] = None
+    detections: Optional[list[str]] = None

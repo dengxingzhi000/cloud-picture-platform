@@ -19,6 +19,7 @@ class ModerationWorker(BaseWorker):
     async def process(self, data: dict) -> Optional[dict]:
         content = data.get("content", "")
         content_type = data.get("type", "text")
+        picture_id = data.get("pictureId", "")
         provider = data.get("provider")
 
         if content_type == "image":
@@ -29,9 +30,18 @@ class ModerationWorker(BaseWorker):
             result, cached = await moderation_service.moderate_text(
                 text=content, provider=provider,
             )
+
+        violations = result.get("violations", [])
+        if not violations and result.get("labels"):
+            violations = [l if isinstance(l, str) else l.get("name", "") for l in result["labels"]]
+
         return {
-            "content": content,
-            "type": content_type,
-            "result": result,
-            "cached": cached,
+            "pictureId": picture_id,
+            "isSafe": result.get("safe", True),
+            "confidence": result.get("confidence", 1.0 if result.get("safe") else 0.0),
+            "provider": result.get("provider", provider or "unknown"),
+            "modelVersion": "1.0",
+            "violationCategories": violations,
+            "processingMs": 0,
+            "rawResponse": str(result),
         }
