@@ -1,19 +1,19 @@
 package com.cn.cloudpictureplatform.infrastructure.ai.gateway;
 
-import java.net.URI;
 import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.Optional;
 import java.util.UUID;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestClient;
 import com.cn.cloudpictureplatform.domain.ai.AiChatRequest;
 import com.cn.cloudpictureplatform.domain.ai.AiChatResponse;
 import com.cn.cloudpictureplatform.domain.ai.AiGateway;
 import com.cn.cloudpictureplatform.infrastructure.persistence.AiCallAuditRepository;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 
@@ -21,11 +21,9 @@ import lombok.extern.slf4j.Slf4j;
 @Service
 @ConditionalOnProperty(prefix = "app.ai", name = "enabled", havingValue = "true")
 public class AiGatewayImpl implements AiGateway {
-    private final HttpClient httpClient;
+    private final RestClient restClient;
     private final AiCallAuditRepository auditRepository;
     private final ObjectMapper objectMapper;
-    private final String baseUrl;
-    private final int embeddingTimeout;
     private final int chatTimeout;
 
     public AiGatewayImpl(
@@ -35,11 +33,18 @@ public class AiGatewayImpl implements AiGateway {
     ) {
         this.auditRepository = auditRepository;
         this.objectMapper = objectMapper;
-        this.baseUrl = properties.getGateway().getBaseUrl();
-        this.embeddingTimeout = properties.getGateway().getTimeoutMs().getEmbedding();
         this.chatTimeout = properties.getGateway().getTimeoutMs().getChat();
-        this.httpClient = HttpClient.newBuilder()
+
+        var httpClient = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(5))
+                .version(HttpClient.Version.HTTP_1_1)
+                .build();
+        var factory = new JdkClientHttpRequestFactory(httpClient);
+        factory.setReadTimeout(Duration.ofMillis(chatTimeout));
+
+        this.restClient = RestClient.builder()
+                .baseUrl(properties.getGateway().getBaseUrl())
+                .requestFactory(factory)
                 .build();
     }
 
@@ -48,20 +53,14 @@ public class AiGatewayImpl implements AiGateway {
     public Optional<float[]> embedText(String text) {
         long start = System.currentTimeMillis();
         try {
-            String body = objectMapper.writeValueAsString(new EmbeddingRequest(text, "text"));
-            HttpRequest req = HttpRequest.newBuilder()
-                    .uri(URI.create(baseUrl + "/api/v1/embedding/text"))
-                    .header("Content-Type", "application/json")
-                    .timeout(Duration.ofMillis(embeddingTimeout))
-                    .POST(HttpRequest.BodyPublishers.ofString(body))
-                    .build();
-            HttpResponse<String> resp = httpClient.send(req, HttpResponse.BodyHandlers.ofString());
+            String body = restClient.post()
+                    .uri("/api/v1/embedding/text")
+                    .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                    .body(new EmbeddingRequest(text, "text"))
+                    .retrieve()
+                    .body(String.class);
             audit("embedding", true, System.currentTimeMillis() - start);
-            var json = objectMapper.readTree(resp.body());
-            var arr = json.get("vector");
-            float[] vector = new float[arr.size()];
-            for (int i = 0; i < arr.size(); i++) vector[i] = (float) arr.get(i).asDouble();
-            return Optional.of(vector);
+            return Optional.of(parseVector(objectMapper.readTree(body)));
         } catch (Exception ex) {
             audit("embedding", false, System.currentTimeMillis() - start);
             log.warn("AI embedding failed: {}", ex.getMessage());
@@ -73,20 +72,14 @@ public class AiGatewayImpl implements AiGateway {
     public Optional<float[]> embedImage(String imageUrl) {
         long start = System.currentTimeMillis();
         try {
-            String body = objectMapper.writeValueAsString(new EmbeddingRequest(imageUrl, "image"));
-            HttpRequest req = HttpRequest.newBuilder()
-                    .uri(URI.create(baseUrl + "/api/v1/embedding/image"))
-                    .header("Content-Type", "application/json")
-                    .timeout(Duration.ofMillis(embeddingTimeout * 2L))
-                    .POST(HttpRequest.BodyPublishers.ofString(body))
-                    .build();
-            HttpResponse<String> resp = httpClient.send(req, HttpResponse.BodyHandlers.ofString());
+            String body = restClient.post()
+                    .uri("/api/v1/embedding/image")
+                    .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                    .body(new EmbeddingRequest(imageUrl, "image"))
+                    .retrieve()
+                    .body(String.class);
             audit("embedding", true, System.currentTimeMillis() - start);
-            var json = objectMapper.readTree(resp.body());
-            var arr = json.get("vector");
-            float[] vector = new float[arr.size()];
-            for (int i = 0; i < arr.size(); i++) vector[i] = (float) arr.get(i).asDouble();
-            return Optional.of(vector);
+            return Optional.of(parseVector(objectMapper.readTree(body)));
         } catch (Exception ex) {
             audit("embedding", false, System.currentTimeMillis() - start);
             log.warn("AI image embedding failed: {}", ex.getMessage());
@@ -97,14 +90,12 @@ public class AiGatewayImpl implements AiGateway {
     @Override
     public void submitTaggingTask(UUID pictureId, String imageUrl) {
         try {
-            String body = objectMapper.writeValueAsString(new TaskSubmit("IMAGE_TAGGING", pictureId, imageUrl));
-            HttpRequest req = HttpRequest.newBuilder()
-                    .uri(URI.create(baseUrl + "/api/v1/tagging/submit"))
-                    .header("Content-Type", "application/json")
-                    .timeout(Duration.ofSeconds(5))
-                    .POST(HttpRequest.BodyPublishers.ofString(body))
-                    .build();
-            httpClient.sendAsync(req, HttpResponse.BodyHandlers.ofString());
+            restClient.post()
+                    .uri("/api/v1/tagging/submit")
+                    .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                    .body(new TaskSubmit("IMAGE_TAGGING", pictureId, imageUrl))
+                    .retrieve()
+                    .toBodilessEntity();
             log.info("Tagging task submitted: pictureId={}", pictureId);
         } catch (Exception ex) {
             log.warn("Failed to submit tagging task: {}", ex.getMessage());
@@ -114,14 +105,12 @@ public class AiGatewayImpl implements AiGateway {
     @Override
     public void submitModerationTask(UUID pictureId, String imageUrl) {
         try {
-            String body = objectMapper.writeValueAsString(new TaskSubmit("MODERATION", pictureId, imageUrl));
-            HttpRequest req = HttpRequest.newBuilder()
-                    .uri(URI.create(baseUrl + "/api/v1/moderation/submit"))
-                    .header("Content-Type", "application/json")
-                    .timeout(Duration.ofSeconds(5))
-                    .POST(HttpRequest.BodyPublishers.ofString(body))
-                    .build();
-            httpClient.sendAsync(req, HttpResponse.BodyHandlers.ofString());
+            restClient.post()
+                    .uri("/api/v1/moderation/submit")
+                    .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                    .body(new TaskSubmit("MODERATION", pictureId, imageUrl))
+                    .retrieve()
+                    .toBodilessEntity();
             log.info("Moderation task submitted: pictureId={}", pictureId);
         } catch (Exception ex) {
             log.warn("Failed to submit moderation task: {}", ex.getMessage());
@@ -132,18 +121,48 @@ public class AiGatewayImpl implements AiGateway {
     public AiChatResponse chat(AiChatRequest request) {
         long start = System.currentTimeMillis();
         try {
-            String body = objectMapper.writeValueAsString(request);
-            HttpRequest req = HttpRequest.newBuilder()
-                    .uri(URI.create(baseUrl + "/api/v1/assistant/chat"))
-                    .header("Content-Type", "application/json")
-                    .timeout(Duration.ofMillis(chatTimeout))
-                    .POST(HttpRequest.BodyPublishers.ofString(body))
-                    .build();
-            HttpResponse<String> resp = httpClient.send(req, HttpResponse.BodyHandlers.ofString());
-            audit("chat", true, System.currentTimeMillis() - start);
-            return objectMapper.readValue(resp.body(), AiChatResponse.class);
+            String contextIds = request.contextPictureIds() != null
+                    ? request.contextPictureIds().stream().map(UUID::toString).reduce((a, b) -> a + "," + b).orElse(null)
+                    : null;
+            ChatPayload payload = new ChatPayload(
+                    request.sessionId(),
+                    request.message(),
+                    contextIds != null ? java.util.List.of(contextIds.split(",")) : null
+            );
+            String respBody = restClient.post()
+                    .uri("/api/v1/assistant/chat")
+                    .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                    .body(payload)
+                    .retrieve()
+                    .body(String.class);
+            JsonNode json = objectMapper.readTree(respBody);
+            log.info("AI chat response: {}", json);
+
+            var data = json != null ? json.get("data") : null;
+            if (data == null || data.isNull()) {
+                auditChat("chat", true, System.currentTimeMillis() - start,
+                        truncate(request.message(), 200), null, null);
+                return new AiChatResponse(request.sessionId(), "AI service unavailable", "error", java.util.List.of());
+            }
+
+            Integer tokensUsed = json.get("tokensUsed") != null && !json.get("tokensUsed").isNull()
+                    ? json.get("tokensUsed").asInt() : null;
+            Integer toolCallsCount = json.get("toolCallsCount") != null && !json.get("toolCallsCount").isNull()
+                    ? json.get("toolCallsCount").asInt() : null;
+
+            auditChat("chat", true, System.currentTimeMillis() - start,
+                    truncate(request.message(), 200), tokensUsed, toolCallsCount);
+
+            return new AiChatResponse(
+                    data.get("sessionId").asText(),
+                    data.get("reply").asText(),
+                    data.get("intent").asText(),
+                    objectMapper.convertValue(data.get("suggestedActions"),
+                            objectMapper.getTypeFactory().constructCollectionType(java.util.List.class, String.class))
+            );
         } catch (Exception ex) {
-            audit("chat", false, System.currentTimeMillis() - start);
+            auditChat("chat", false, System.currentTimeMillis() - start,
+                    truncate(request.message(), 200), null, null);
             log.warn("AI chat failed: {}", ex.getMessage());
             return new AiChatResponse(request.sessionId(), "AI service unavailable", "error", java.util.List.of());
         }
@@ -153,6 +172,19 @@ public class AiGatewayImpl implements AiGateway {
     private Optional<float[]> embedTextFallback(String text, Throwable t) {
         log.warn("AI embedding circuit breaker fallback: {}", t.getMessage());
         return Optional.empty();
+    }
+
+    private float[] parseVector(JsonNode json) {
+        var arr = json != null ? json.get("vector") : null;
+        if (arr == null || arr.isNull()) return new float[0];
+        float[] vector = new float[arr.size()];
+        for (int i = 0; i < arr.size(); i++) vector[i] = (float) arr.get(i).asDouble();
+        return vector;
+    }
+
+    private static String truncate(String s, int maxLen) {
+        if (s == null) return null;
+        return s.length() <= maxLen ? s : s.substring(0, maxLen) + "...";
     }
 
     private void audit(String taskType, boolean success, long latencyMs) {
@@ -165,6 +197,21 @@ public class AiGatewayImpl implements AiGateway {
         }
     }
 
+    private void auditChat(String taskType, boolean success, long latencyMs, String requestSummary,
+                            Integer tokensUsed, Integer toolCallsCount) {
+        try {
+            auditRepository.save(com.cn.cloudpictureplatform.domain.ai.AiCallAudit.builder()
+                    .taskType(taskType).success(success).latencyMs((int) latencyMs)
+                    .requestSummary(requestSummary)
+                    .tokensUsed(tokensUsed)
+                    .toolCallsCount(toolCallsCount)
+                    .createdAt(java.time.Instant.now()).build());
+        } catch (Exception ex) {
+            log.warn("Failed to save AI audit: {}", ex.getMessage());
+        }
+    }
+
     private record EmbeddingRequest(String content, String inputType) {}
     private record TaskSubmit(String taskType, UUID pictureId, String imageUrl) {}
+    private record ChatPayload(String sessionId, String message, java.util.List<String> contextPictureIds) {}
 }

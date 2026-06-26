@@ -14,6 +14,7 @@ public class AiProperties {
     private Gateway gateway = new Gateway();
     private Tagging tagging = new Tagging();
     private Moderation moderation = new Moderation();
+    private Chat chat = new Chat();
 
     @Getter
     @Setter
@@ -47,5 +48,12 @@ public class AiProperties {
         private double autoApproveThreshold = 0.92;
         private double autoRejectThreshold = 0.95;
         private boolean escalateToHuman = true;
+    }
+
+    @Getter
+    @Setter
+    public static class Chat {
+        private int maxHistory = 20;
+        private int historyRetentionDays = 30;
     }
 }
