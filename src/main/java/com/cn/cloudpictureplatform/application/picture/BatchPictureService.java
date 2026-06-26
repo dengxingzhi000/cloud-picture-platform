@@ -5,6 +5,7 @@ import com.cn.cloudpictureplatform.common.web.ApiErrorCode;
 import com.cn.cloudpictureplatform.domain.picture.PictureAsset;
 import com.cn.cloudpictureplatform.domain.picture.PictureTag;
 import com.cn.cloudpictureplatform.domain.picture.Visibility;
+import com.cn.cloudpictureplatform.infrastructure.persistence.FileContentRepository;
 import com.cn.cloudpictureplatform.infrastructure.persistence.PictureAssetRepository;
 import com.cn.cloudpictureplatform.infrastructure.persistence.PictureTagRepository;
 import lombok.RequiredArgsConstructor;
@@ -22,12 +23,16 @@ public class BatchPictureService {
 
     private final PictureAssetRepository pictureAssetRepository;
     private final PictureTagRepository pictureTagRepository;
+    private final FileContentRepository fileContentRepository;
     private final com.cn.cloudpictureplatform.application.album.AlbumService albumService;
 
     @Transactional
     public int batchDelete(List<UUID> pictureIds, UUID requesterId) {
         List<PictureAsset> assets = findAuthorizedAssets(pictureIds, requesterId);
         for (PictureAsset asset : assets) {
+            if (asset.getFileContentId() != null) {
+                fileContentRepository.decrementRefCount(asset.getFileContentId());
+            }
             pictureTagRepository.deleteByPictureAssetId(asset.getId());
         }
         pictureAssetRepository.deleteAll(assets);

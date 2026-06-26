@@ -56,7 +56,7 @@ public interface FileContentRepository extends JpaRepository<FileContent, UUID> 
      * 原子性减少引用计数
      */
     @Modifying(clearAutomatically = true, flushAutomatically = true)
-    @Query("UPDATE FileContent fc SET fc.refCount = fc.refCount - 1 WHERE fc.id = :id")
+    @Query("UPDATE FileContent fc SET fc.refCount = fc.refCount - 1 WHERE fc.id = :id AND fc.refCount > 0")
     void decrementRefCount(@Param("id") UUID id);
 
     /**

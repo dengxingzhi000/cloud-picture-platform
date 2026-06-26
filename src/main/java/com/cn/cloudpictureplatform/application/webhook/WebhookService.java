@@ -1,6 +1,8 @@
 package com.cn.cloudpictureplatform.application.webhook;
 
+import java.net.InetAddress;
 import java.net.URI;
+import java.net.UnknownHostException;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
@@ -15,6 +17,8 @@ import javax.crypto.spec.SecretKeySpec;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.cn.cloudpictureplatform.common.exception.ApiException;
+import com.cn.cloudpictureplatform.common.web.ApiErrorCode;
 import com.cn.cloudpictureplatform.common.web.PageResponse;
 import com.cn.cloudpictureplatform.domain.webhook.WebhookDelivery;
 import com.cn.cloudpictureplatform.domain.webhook.WebhookEndpoint;
@@ -47,6 +51,7 @@ public class WebhookService {
 
     @Transactional
     public WebhookEndpoint registerEndpoint(UUID ownerId, String ownerType, String url, String secret, List<String> events) {
+        validateWebhookUrl(url);
         WebhookEndpoint ep = WebhookEndpoint.builder()
                 .ownerId(ownerId).ownerType(ownerType).url(url).secret(secret)
                 .events(listToJson(events)).active(true).build();
@@ -108,6 +113,44 @@ public class WebhookService {
                     .requestUrl(ep.getUrl()).requestBody(body)
                     .success(false).durationMs(duration).build());
             log.warn("Webhook delivery error: webhookId={}, error={}", webhookId, ex.getMessage());
+        }
+    }
+
+    private void validateWebhookUrl(String urlStr) {
+        try {
+            URI uri = URI.create(urlStr);
+            String host = uri.getHost();
+            if (host == null) {
+                throw new ApiException(ApiErrorCode.BAD_REQUEST, "invalid webhook URL");
+            }
+
+            String lowerHost = host.toLowerCase();
+            if (lowerHost.equals("localhost")
+                || lowerHost.equals("127.0.0.1")
+                || lowerHost.equals("0.0.0.0")
+                || lowerHost.equals("[::1]")
+                || lowerHost.endsWith(".local")
+                || lowerHost.endsWith(".internal")) {
+                throw new ApiException(ApiErrorCode.BAD_REQUEST, "webhook URL cannot point to internal addresses");
+            }
+
+            InetAddress addr = InetAddress.getByName(host);
+            if (addr.isLoopbackAddress()
+                || addr.isSiteLocalAddress()
+                || addr.isLinkLocalAddress()
+                || addr.isAnyLocalAddress()) {
+                throw new ApiException(ApiErrorCode.BAD_REQUEST, "webhook URL cannot point to private/reserved IP ranges");
+            }
+
+            String ip = addr.getHostAddress();
+            if (ip.startsWith("169.254.")) {
+                throw new ApiException(ApiErrorCode.BAD_REQUEST, "webhook URL cannot point to link-local addresses");
+            }
+
+        } catch (ApiException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new ApiException(ApiErrorCode.BAD_REQUEST, "invalid webhook URL: " + e.getMessage());
         }
     }
 

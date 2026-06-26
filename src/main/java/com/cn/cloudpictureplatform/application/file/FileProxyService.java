@@ -9,12 +9,13 @@ import com.cn.cloudpictureplatform.domain.storage.StorageService;
 import com.cn.cloudpictureplatform.infrastructure.persistence.PictureAssetRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.io.InputStream;
-import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class FileProxyService {
 
     private final PictureAssetRepository pictureAssetRepository;
@@ -31,14 +32,7 @@ public class FileProxyService {
     }
 
     private String resolvePublicFile(String path) {
-        Optional<PictureAsset> asset = pictureAssetRepository.findByStorageKey(path);
-        if (asset.isEmpty()) {
-            throw new ApiException(ApiErrorCode.NOT_FOUND, "file not found");
-        }
-        PictureAsset pic = asset.get();
-        if (pic.isDeleted()) {
-            throw new ApiException(ApiErrorCode.NOT_FOUND, "file not found");
-        }
+        PictureAsset pic = getValidAssetOrThrow(path);
         if (pic.getVisibility() != Visibility.PUBLIC || !pic.isApproved()) {
             throw new ApiException(ApiErrorCode.FORBIDDEN, "access denied");
         }
@@ -46,14 +40,7 @@ public class FileProxyService {
     }
 
     private String resolveProtectedFile(String path, AppUserPrincipal requester) {
-        Optional<PictureAsset> asset = pictureAssetRepository.findByStorageKey(path);
-        if (asset.isEmpty()) {
-            throw new ApiException(ApiErrorCode.NOT_FOUND, "file not found");
-        }
-        PictureAsset pic = asset.get();
-        if (pic.isDeleted()) {
-            throw new ApiException(ApiErrorCode.NOT_FOUND, "file not found");
-        }
+        PictureAsset pic = getValidAssetOrThrow(path);
         if (pic.isOwnedBy(requester.getId())) {
             return path;
         }
@@ -61,6 +48,15 @@ public class FileProxyService {
             return path;
         }
         throw new ApiException(ApiErrorCode.FORBIDDEN, "access denied");
+    }
+
+    private PictureAsset getValidAssetOrThrow(String storageKey) {
+        PictureAsset pic = pictureAssetRepository.findByStorageKey(storageKey)
+                .orElseThrow(() -> new ApiException(ApiErrorCode.NOT_FOUND, "file not found"));
+        if (pic.isDeleted()) {
+            throw new ApiException(ApiErrorCode.NOT_FOUND, "file not found");
+        }
+        return pic;
     }
 
     public InputStream getFileStream(String storageKey) {

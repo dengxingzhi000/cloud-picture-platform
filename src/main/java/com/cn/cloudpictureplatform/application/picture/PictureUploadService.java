@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
+import com.cn.cloudpictureplatform.application.file.FileValidationService;
 import com.cn.cloudpictureplatform.common.exception.ApiException;
 import com.cn.cloudpictureplatform.domain.events.DomainEventBus;
 import com.cn.cloudpictureplatform.domain.events.PictureUploadedEvent;
@@ -40,6 +41,7 @@ public class PictureUploadService {
     private final com.cn.cloudpictureplatform.application.search.SearchIndexService searchIndexService;
     private final DomainEventBus domainEventBus;
     private final PictureResponseConverter responseConverter;
+    private final FileValidationService fileValidationService;
 
     public PictureUploadService(
             StorageService storageService,
@@ -49,7 +51,8 @@ public class PictureUploadService {
             SpaceQuotaService spaceQuotaService,
             com.cn.cloudpictureplatform.application.search.SearchIndexService searchIndexService,
             DomainEventBus domainEventBus,
-            PictureResponseConverter responseConverter
+            PictureResponseConverter responseConverter,
+            FileValidationService fileValidationService
     ) {
         this.storageService = storageService;
         this.pictureAssetRepository = pictureAssetRepository;
@@ -59,6 +62,7 @@ public class PictureUploadService {
         this.searchIndexService = searchIndexService;
         this.domainEventBus = domainEventBus;
         this.responseConverter = responseConverter;
+        this.fileValidationService = fileValidationService;
     }
 
     @Transactional
@@ -68,6 +72,8 @@ public class PictureUploadService {
         }
         Space space = spacePermissionValidator.resolveAndValidateSpace(ownerId, spaceId);
         spaceQuotaService.assertQuotaAvailable(space.getId(), file.getSize());
+
+        fileValidationService.validateImage(file);
 
         String originalFilename = StringUtils.hasText(file.getOriginalFilename())
                 ? file.getOriginalFilename()
