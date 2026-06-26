@@ -39,7 +39,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/v1/pictures/public").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/pictures/search").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/pictures/recommendations").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/uploads/**").permitAll()
+                        .requestMatchers("/api/files/**").permitAll()
                         .requestMatchers("/ws/**").permitAll()
                         .requestMatchers("/api/v1/admin/**").hasAuthority("admin:review")
                         .anyRequest().authenticated()

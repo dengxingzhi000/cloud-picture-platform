@@ -4,6 +4,7 @@ import java.time.Instant;
 import java.util.UUID;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EntityListeners;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.Id;
 import jakarta.persistence.Index;
@@ -15,12 +16,14 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.hibernate.annotations.UuidGenerator;
 import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 @Getter
 @Setter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@EntityListeners(AuditingEntityListener.class)
 @Entity
 @Table(name = "ai_call_audit", indexes = {
         @Index(name = "idx_aca_type", columnList = "task_type, created_at")
@@ -59,6 +62,15 @@ public class AiCallAudit {
 
     @Column(name = "error_code", length = 50)
     private String errorCode;
+
+    @Column(name = "tokens_used")
+    private Integer tokensUsed;
+
+    @Column(name = "tool_calls_count")
+    private Integer toolCallsCount;
+
+    @Column(name = "request_summary", length = 500)
+    private String requestSummary;
 
     @CreatedDate
     @Column(name = "created_at", nullable = false, updatable = false)
