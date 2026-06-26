@@ -11,6 +11,7 @@ public enum ApiErrorCode {
     CONFLICT("CONFLICT", "conflict"),
     NOT_FOUND("NOT_FOUND", "not found"),
     SERVER_ERROR("SERVER_ERROR", "server error"),
+    RATE_LIMITED("RATE_LIMITED", "too many requests, please try again later"),
 
     // RBAC Management Error Codes
     ROLE_NOT_FOUND("ROLE_NOT_FOUND", "role not found"),

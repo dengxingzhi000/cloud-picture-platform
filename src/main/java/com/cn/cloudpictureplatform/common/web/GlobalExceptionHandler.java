@@ -1,6 +1,7 @@
 package com.cn.cloudpictureplatform.common.web;
 
 import com.cn.cloudpictureplatform.common.exception.ApiException;
+import com.cn.cloudpictureplatform.common.exception.RateLimitExceededException;
 import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -69,6 +70,13 @@ public class GlobalExceptionHandler {
         log.warn("请求体解析失败: {}", exception.getMessage());
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(ApiResponse.error(ApiErrorCode.BAD_REQUEST, "invalid request body"));
+    }
+
+    @ExceptionHandler(RateLimitExceededException.class)
+    public ResponseEntity<ApiResponse<Void>> handleRateLimit(RateLimitExceededException ex) {
+        log.warn("Rate limit exceeded: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .body(ApiResponse.error(ex.getErrorCode(), ex.getMessage()));
     }
 
     @ExceptionHandler(Exception.class)

@@ -71,6 +71,12 @@ public class DataInitializer implements ApplicationRunner {
     @Override
     @Transactional
     public void run(ApplicationArguments args) {
+        log.warn("==========================================================");
+        log.warn("WARNING: Admin bootstrap is ENABLED. Test accounts will be created.");
+        log.warn("This should NEVER be enabled in production.");
+        log.warn("Set app.bootstrap.admin.enabled=false to disable.");
+        log.warn("==========================================================");
+
         // Ensure roles exist
         Role adminRole = ensureRole("ROLE_ADMIN", "System administrator", true);
         Role moderatorRole = ensureRole("ROLE_MODERATOR", "Content moderator", true);

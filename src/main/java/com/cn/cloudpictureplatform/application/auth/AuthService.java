@@ -5,13 +5,18 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 import com.cn.cloudpictureplatform.common.exception.ApiException;
+import com.cn.cloudpictureplatform.common.exception.RateLimitExceededException;
 import com.cn.cloudpictureplatform.common.web.ApiErrorCode;
 import com.cn.cloudpictureplatform.config.JwtProperties;
 import com.cn.cloudpictureplatform.domain.rbac.Menu;
@@ -51,6 +56,7 @@ public class AuthService {
     private final UserRoleRepository userRoleRepository;
     private final RolePermissionRepository rolePermissionRepository;
     private final MenuRepository menuRepository;
+    private final StringRedisTemplate redisTemplate;
 
     public AuthService(
             AppUserRepository appUserRepository,
@@ -61,7 +67,8 @@ public class AuthService {
             RoleRepository roleRepository,
             UserRoleRepository userRoleRepository,
             RolePermissionRepository rolePermissionRepository,
-            MenuRepository menuRepository
+            MenuRepository menuRepository,
+            StringRedisTemplate redisTemplate
     ) {
         this.appUserRepository = appUserRepository;
         this.spaceRepository = spaceRepository;
@@ -72,10 +79,12 @@ public class AuthService {
         this.userRoleRepository = userRoleRepository;
         this.rolePermissionRepository = rolePermissionRepository;
         this.menuRepository = menuRepository;
+        this.redisTemplate = redisTemplate;
     }
 
     @Transactional
     public AuthResponse register(RegisterRequest request) {
+        checkRegisterRateLimit(getClientIp());
         String password = request.getPassword();
         if (password == null || password.length() < 8) {
             throw new ApiException(ApiErrorCode.BAD_REQUEST, "password must be at least 8 characters");
@@ -133,6 +142,7 @@ public class AuthService {
     }
 
     public LoginResponse login(LoginRequest request) {
+        checkLoginRateLimit(getClientIp());
         Optional<AppUser> userOptional = appUserRepository.findByUsername(request.getUsernameOrEmail());
         if (userOptional.isEmpty()) {
             userOptional = appUserRepository.findByEmail(request.getUsernameOrEmail());
@@ -178,6 +188,47 @@ public class AuthService {
             user.setAvatarUrl(StringUtils.hasText(trimmed) ? trimmed : null);
         }
         return appUserRepository.save(user);
+    }
+
+    private static final String LOGIN_RATE_KEY_PREFIX = "rate:login:";
+    private static final String REGISTER_RATE_KEY_PREFIX = "rate:register:";
+    private static final int LOGIN_MAX_ATTEMPTS = 10;
+    private static final int LOGIN_WINDOW_MINUTES = 15;
+    private static final int REGISTER_MAX_ATTEMPTS = 5;
+    private static final int REGISTER_WINDOW_MINUTES = 60;
+
+    private void checkLoginRateLimit(String ip) {
+        String key = LOGIN_RATE_KEY_PREFIX + ip;
+        Long count = redisTemplate.opsForValue().increment(key);
+        if (count != null && count == 1) {
+            redisTemplate.expire(key, LOGIN_WINDOW_MINUTES, TimeUnit.MINUTES);
+        }
+        if (count != null && count > LOGIN_MAX_ATTEMPTS) {
+            throw new RateLimitExceededException("too many login attempts, please try again later");
+        }
+    }
+
+    private void checkRegisterRateLimit(String ip) {
+        String key = REGISTER_RATE_KEY_PREFIX + ip;
+        Long count = redisTemplate.opsForValue().increment(key);
+        if (count != null && count == 1) {
+            redisTemplate.expire(key, REGISTER_WINDOW_MINUTES, TimeUnit.MINUTES);
+        }
+        if (count != null && count > REGISTER_MAX_ATTEMPTS) {
+            throw new RateLimitExceededException("too many registration attempts, please try again later");
+        }
+    }
+
+    private String getClientIp() {
+        ServletRequestAttributes attrs = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+        if (attrs == null) {
+            return "unknown";
+        }
+        String forwarded = attrs.getRequest().getHeader("X-Forwarded-For");
+        if (StringUtils.hasText(forwarded)) {
+            return forwarded.split(",")[0].trim();
+        }
+        return attrs.getRequest().getRemoteAddr();
     }
 
     /**
