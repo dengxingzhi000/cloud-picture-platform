@@ -14,7 +14,7 @@ spring:
   jpa:
     open-in-view: false
     hibernate:
-      ddl-auto: update
+      ddl-auto: validate
     show-sql: true
     properties:
       hibernate:
@@ -26,8 +26,8 @@ spring:
     baseline-version: 0
   data:
     redis:
-      host: ${REDIS_HOST:localhost}
-      port: ${REDIS_PORT:6379}
+      host: 192.168.0.179
+      port: 6379
   cache:
     type: redis
     redis:
@@ -40,7 +40,7 @@ spring:
 app:
   bootstrap:
     admin:
-      enabled: true
+      enabled: false
   storage:
     provider: local
     local:
@@ -54,6 +54,7 @@ app:
       base-url: http://costorage.auditoryworks.co/
       prefix:
   websocket:
+    allowed-origins: ${WS_ALLOWED_ORIGINS:http://localhost:5173,http://localhost:3000}
     endpoint: /ws
   collaboration:
     provider: yjs-websocket
@@ -65,20 +66,8 @@ app:
   security:
     jwt:
       issuer: cloud-picture-platform
-      secret: ${JWT_SECRET:dev-only-change-me-in-production-32chars-min}
+      secret: ${JWT_SECRET:}
       access-token-ttl-seconds: 7200
-
-management:
-  endpoints:
-    web:
-      exposure:
-        include: health,info,metrics,caches,prometheus
-  health:
-    redis:
-      enabled: true
-  metrics:
-    enable:
-      cache: true
 
   ai:
     enabled: false
@@ -99,3 +88,18 @@ management:
       auto-approve-threshold: 0.92
       auto-reject-threshold: 0.95
       escalate-to-human: true
+    chat:
+      max-history: 20
+      history-retention-days: 30
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,caches,prometheus
+  health:
+    redis:
+      enabled: true
+  metrics:
+    enable:
+      cache: true

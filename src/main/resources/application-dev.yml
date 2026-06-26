@@ -1,5 +1,39 @@
 spring:
+  datasource:
+    url: jdbc:h2:mem:cloud_picture_dev;MODE=PostgreSQL;DB_CLOSE_DELAY=-1
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
   jpa:
     show-sql: true
     hibernate:
       ddl-auto: update
+  h2:
+    console:
+      enabled: true
+  flyway:
+    enabled: false
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.amqp.RabbitAutoConfiguration
+  data:
+    redis:
+      host: 192.168.0.179
+  cache:
+    type: simple
+  rabbitmq:
+    listener:
+      simple:
+        auto-startup: false
+
+app:
+  bootstrap:
+    admin:
+      enabled: true
+  security:
+    jwt:
+      secret: dev-local-only-jwt-secret-key-not-for-production-32ch
+  ai:
+    enabled: true
+    gateway:
+      base-url: http://localhost:8001
