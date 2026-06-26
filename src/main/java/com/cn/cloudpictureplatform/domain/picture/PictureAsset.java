@@ -13,6 +13,7 @@ import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 import lombok.*;
 
+@org.hibernate.annotations.SQLRestriction("deleted_at IS NULL")
 @Getter
 @Setter
 @Builder
@@ -25,7 +26,8 @@ import lombok.*;
                 @Index(name = "idx_picture_owner", columnList = "owner_id"),
                 @Index(name = "idx_picture_space", columnList = "space_id"),
                 @Index(name = "idx_picture_visibility", columnList = "visibility"),
-                @Index(name = "idx_picture_review", columnList = "review_status")
+                @Index(name = "idx_picture_review", columnList = "review_status"),
+                @Index(name = "idx_picture_storage_key", columnList = "storage_key")
         }
 )
 public class PictureAsset extends BaseEntity {
