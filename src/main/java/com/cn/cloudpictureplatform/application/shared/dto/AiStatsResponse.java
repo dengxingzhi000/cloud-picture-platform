@@ -11,6 +11,8 @@ public class AiStatsResponse {
     private TaggingStats tagging;
     private ModerationStats moderation;
     private EmbeddingStats embedding;
+    private ChatStats chat;
+    private ToolCallStats toolCalls;
 
     @Getter @Builder @AllArgsConstructor
     public static class TaggingStats {
@@ -30,6 +32,23 @@ public class AiStatsResponse {
     @Getter @Builder @AllArgsConstructor
     public static class EmbeddingStats {
         private long totalCalls;
+        private double avgLatencyMs;
+    }
+
+    @Getter @Builder @AllArgsConstructor
+    public static class ChatStats {
+        private long totalCalls;
+        private long successCalls;
+        private double avgLatencyMs;
+        private Long totalTokensUsed;
+        private double avgTokensPerCall;
+        private double toolCallRate;
+    }
+
+    @Getter @Builder @AllArgsConstructor
+    public static class ToolCallStats {
+        private long totalCalls;
+        private long successCalls;
         private double avgLatencyMs;
     }
 }
