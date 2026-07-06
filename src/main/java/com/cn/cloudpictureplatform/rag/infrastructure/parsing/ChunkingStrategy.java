@@ -1,10 +1,8 @@
 package com.cn.cloudpictureplatform.rag.infrastructure.parsing;
 
-import org.springframework.stereotype.Component;
 import java.util.ArrayList;
 import java.util.List;
 
-@Component
 public class ChunkingStrategy {
 
     private final int maxTokens;
