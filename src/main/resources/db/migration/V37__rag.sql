@@ -16,7 +16,7 @@ CREATE TABLE rag_document (
 
 CREATE TABLE rag_document_chunk (
     id UUID NOT NULL,
-    document_id UUID NOT NULL REFERENCES rag_document(id),
+    document_id UUID NOT NULL REFERENCES rag_document(id) ON DELETE CASCADE,
     chunk_index INTEGER NOT NULL,
     content TEXT NOT NULL,
     token_count INTEGER NOT NULL,

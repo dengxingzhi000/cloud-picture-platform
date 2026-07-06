@@ -5,22 +5,28 @@ import java.util.List;
 import java.util.UUID;
 import com.cn.cloudpictureplatform.common.model.BaseEntity;
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Getter
 @Setter
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 @Entity
 @Table(name = "rag_document")
 public class RagDocument extends BaseEntity {
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 500)
     private String title;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 500)
     private String originalFilename;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 100)
     private String contentType;
 
     private Long fileSize;
