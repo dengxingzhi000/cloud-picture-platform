@@ -6,6 +6,7 @@ import com.cn.cloudpictureplatform.rag.domain.RetrievalResult;
 import com.cn.cloudpictureplatform.rag.infrastructure.cache.SemanticCache;
 import com.cn.cloudpictureplatform.rag.infrastructure.embedding.EmbeddingClient;
 import com.cn.cloudpictureplatform.rag.infrastructure.generator.DeepSeekGenerationClient;
+import com.cn.cloudpictureplatform.rag.infrastructure.metrics.RagMetrics;
 import com.cn.cloudpictureplatform.rag.infrastructure.persistence.ConversationRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,6 +29,7 @@ public class QaService {
     private final SemanticCache semanticCache;
     private final EmbeddingClient embeddingClient;
     private final RagProperties ragProperties;
+    private final RagMetrics ragMetrics;
 
     private static final String SYSTEM_PROMPT = """
         你是一个企业知识库问答助手。请根据以下检索到的文档片段回答用户问题。
@@ -54,16 +56,24 @@ public class QaService {
         Optional<String> cachedAnswer = semanticCache.findCachedAnswer(queryEmbedding);
         if (cachedAnswer.isPresent()) {
             log.debug("Semantic cache hit for query: {}", query);
+            ragMetrics.recordRetrieval(0, true);
             return new QaResponse(cachedAnswer.get(), List.of("cached"), 0);
         }
 
+        long start = System.currentTimeMillis();
         List<RetrievalResult> retrieved = retrievalService.retrieve(searchQuery);
         List<RetrievalResult> reranked = rerankService.rerank(searchQuery, retrieved);
+        long retrievalMs = System.currentTimeMillis() - start;
 
         String context = buildContext(reranked);
 
+        start = System.currentTimeMillis();
         String userPrompt = "检索到的文档：\n" + context + "\n\n用户问题：" + query;
         String answer = generationClient.generate(SYSTEM_PROMPT, userPrompt);
+        long generationMs = System.currentTimeMillis() - start;
+
+        ragMetrics.recordRetrieval(retrievalMs, false);
+        ragMetrics.recordGeneration(generationMs);
 
         semanticCache.cacheAnswer(queryEmbedding, answer);
 

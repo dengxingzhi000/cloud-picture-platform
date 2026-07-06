@@ -6,6 +6,7 @@ import com.cn.cloudpictureplatform.rag.domain.DocumentChunk;
 import com.cn.cloudpictureplatform.rag.domain.DocumentStatus;
 import com.cn.cloudpictureplatform.rag.domain.RagDocument;
 import com.cn.cloudpictureplatform.rag.infrastructure.embedding.EmbeddingClient;
+import com.cn.cloudpictureplatform.rag.infrastructure.metrics.RagMetrics;
 import com.cn.cloudpictureplatform.rag.infrastructure.opensearch.ChunkDocument;
 import com.cn.cloudpictureplatform.rag.infrastructure.opensearch.OpenSearchChunkClient;
 import com.cn.cloudpictureplatform.rag.infrastructure.parsing.ChunkingStrategy;
@@ -34,6 +35,7 @@ public class IngestionService {
     private final EmbeddingClient embeddingClient;
     private final OpenSearchChunkClient openSearchChunkClient;
     private final RagProperties ragProperties;
+    private final RagMetrics ragMetrics;
 
     @Transactional
     public RagDocument ingestDocument(InputStream inputStream, String filename, String contentType) {
@@ -44,6 +46,7 @@ public class IngestionService {
         document.setStatus(DocumentStatus.PROCESSING);
         document = ragDocumentRepository.save(document);
 
+        long start = System.currentTimeMillis();
         try {
             ParsedDocument parsed = documentParser.parse(inputStream, filename, contentType);
 
@@ -100,6 +103,8 @@ public class IngestionService {
             documentChunkRepository.saveAll(allChunks);
 
             document.setStatus(DocumentStatus.INDEXED);
+            long durationMs = System.currentTimeMillis() - start;
+            ragMetrics.recordIngestion(allChunks.size(), durationMs);
             return ragDocumentRepository.save(document);
 
         } catch (Exception e) {
