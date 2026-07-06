@@ -25,16 +25,18 @@ public class RagController {
     @PostMapping("/documents/upload")
     public ApiResponse<DocumentUploadResponse> uploadDocument(
             @RequestParam("file") MultipartFile file) throws IOException {
-        RagDocument doc = ingestionService.ingestDocument(
+        RagDocument doc = ingestionService.createAndParseDocument(
             file.getInputStream(),
             file.getOriginalFilename(),
             file.getContentType()
         );
+        // Index to OpenSearch outside transaction
+        ingestionService.indexToOpenSearch(doc);
         return ApiResponse.ok(new DocumentUploadResponse(
             doc.getId(),
             doc.getTitle(),
             doc.getStatus().name(),
-            doc.getChunks().size()
+            doc.getChunks() != null ? doc.getChunks().size() : 0
         ));
     }
 

@@ -38,7 +38,7 @@ public class IngestionService {
     private final RagMetrics ragMetrics;
 
     @Transactional
-    public RagDocument ingestDocument(InputStream inputStream, String filename, String contentType) {
+    public RagDocument createAndParseDocument(InputStream inputStream, String filename, String contentType) {
         RagDocument document = new RagDocument();
         document.setTitle(filename);
         document.setOriginalFilename(filename);
@@ -46,7 +46,6 @@ public class IngestionService {
         document.setStatus(DocumentStatus.PROCESSING);
         document = ragDocumentRepository.save(document);
 
-        long start = System.currentTimeMillis();
         try {
             ParsedDocument parsed = documentParser.parse(inputStream, filename, contentType);
 
@@ -74,13 +73,26 @@ public class IngestionService {
             }
 
             allChunks = documentChunkRepository.saveAll(allChunks);
+            document.setChunks(allChunks);
+            return document;
 
+        } catch (Exception e) {
+            log.error("Ingestion failed for document {}: {}", filename, e.getMessage());
+            document.setStatus(DocumentStatus.FAILED);
+            return ragDocumentRepository.save(document);
+        }
+    }
+
+    public void indexToOpenSearch(RagDocument document) {
+        long start = System.currentTimeMillis();
+        try {
             var embedConfig = ragProperties.embedding();
-            List<String> contents = allChunks.stream().map(DocumentChunk::getContent).toList();
+            List<DocumentChunk> chunks = document.getChunks();
+            List<String> contents = chunks.stream().map(DocumentChunk::getContent).toList();
             List<List<Float>> embeddings = embeddingClient.embed(contents, embedConfig.dimensions());
 
-            for (int i = 0; i < allChunks.size(); i++) {
-                DocumentChunk chunk = allChunks.get(i);
+            for (int i = 0; i < chunks.size(); i++) {
+                DocumentChunk chunk = chunks.get(i);
                 String osId = UUID.randomUUID().toString();
                 chunk.setOpenSearchId(osId);
 
@@ -100,17 +112,15 @@ public class IngestionService {
                 openSearchChunkClient.indexChunk(chunkDoc);
             }
 
-            documentChunkRepository.saveAll(allChunks);
-
             document.setStatus(DocumentStatus.INDEXED);
             long durationMs = System.currentTimeMillis() - start;
-            ragMetrics.recordIngestion(allChunks.size(), durationMs);
-            return ragDocumentRepository.save(document);
+            ragMetrics.recordIngestion(chunks.size(), durationMs);
+            ragDocumentRepository.save(document);
 
         } catch (Exception e) {
-            log.error("Ingestion failed for document {}: {}", filename, e.getMessage());
+            log.error("OpenSearch indexing failed for document {}: {}", document.getId(), e.getMessage());
             document.setStatus(DocumentStatus.FAILED);
-            return ragDocumentRepository.save(document);
+            ragDocumentRepository.save(document);
         }
     }
 
