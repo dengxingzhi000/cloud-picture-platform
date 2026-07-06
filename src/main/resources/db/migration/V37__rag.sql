@@ -34,5 +34,5 @@ CREATE TABLE rag_document_chunk (
 
 CREATE INDEX idx_rag_chunk_doc ON rag_document_chunk(document_id, chunk_index);
 CREATE INDEX idx_rag_chunk_status ON rag_document_chunk(status);
-CREATE INDEX idx_rag_doc_status ON rag_document(status, deleted);
+CREATE INDEX idx_rag_doc_status ON rag_document(status);
 CREATE INDEX idx_rag_doc_title ON rag_document USING gin(to_tsvector('simple', title));

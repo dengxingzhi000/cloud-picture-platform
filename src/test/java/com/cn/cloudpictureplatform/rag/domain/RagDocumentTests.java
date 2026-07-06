@@ -21,7 +21,6 @@ class RagDocumentTests {
     void shouldCreateChunkWithDefaults() {
         DocumentChunk chunk = new DocumentChunk();
         chunk.setContent("test content");
-        chunk.setChunkIndex(0);
 
         assertEquals(ChunkStatus.ACTIVE, chunk.getStatus());
         assertEquals(0, chunk.getChunkIndex());

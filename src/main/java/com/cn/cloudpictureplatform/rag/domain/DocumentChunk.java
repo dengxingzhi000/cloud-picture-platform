@@ -16,7 +16,7 @@ public class DocumentChunk extends BaseEntity {
     private RagDocument document;
 
     @Column(nullable = false)
-    private Integer chunkIndex;
+    private Integer chunkIndex = 0;
 
     @Column(columnDefinition = "TEXT", nullable = false)
     private String content;
