@@ -1,7 +1,10 @@
 package com.cn.cloudpictureplatform.rag.application;
 
+import com.cn.cloudpictureplatform.rag.config.RagProperties;
 import com.cn.cloudpictureplatform.rag.domain.ConversationMessage;
 import com.cn.cloudpictureplatform.rag.domain.RetrievalResult;
+import com.cn.cloudpictureplatform.rag.infrastructure.cache.SemanticCache;
+import com.cn.cloudpictureplatform.rag.infrastructure.embedding.EmbeddingClient;
 import com.cn.cloudpictureplatform.rag.infrastructure.generator.DeepSeekGenerationClient;
 import com.cn.cloudpictureplatform.rag.infrastructure.persistence.ConversationRepository;
 import lombok.RequiredArgsConstructor;
@@ -9,6 +12,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -21,6 +25,9 @@ public class QaService {
     private final DeepSeekGenerationClient generationClient;
     private final ConversationRepository conversationRepository;
     private final QueryRewriter queryRewriter;
+    private final SemanticCache semanticCache;
+    private final EmbeddingClient embeddingClient;
+    private final RagProperties ragProperties;
 
     private static final String SYSTEM_PROMPT = """
         你是一个企业知识库问答助手。请根据以下检索到的文档片段回答用户问题。
@@ -43,6 +50,13 @@ public class QaService {
 
         String searchQuery = queryRewriter.rewrite(query, history);
 
+        List<Float> queryEmbedding = embeddingClient.embedSingle(searchQuery, ragProperties.embedding().dimensions());
+        Optional<String> cachedAnswer = semanticCache.findCachedAnswer(queryEmbedding);
+        if (cachedAnswer.isPresent()) {
+            log.debug("Semantic cache hit for query: {}", query);
+            return new QaResponse(cachedAnswer.get(), List.of("cached"), 0);
+        }
+
         List<RetrievalResult> retrieved = retrievalService.retrieve(searchQuery);
         List<RetrievalResult> reranked = rerankService.rerank(searchQuery, retrieved);
 
@@ -50,6 +64,8 @@ public class QaService {
 
         String userPrompt = "检索到的文档：\n" + context + "\n\n用户问题：" + query;
         String answer = generationClient.generate(SYSTEM_PROMPT, userPrompt);
+
+        semanticCache.cacheAnswer(queryEmbedding, answer);
 
         if (sessionId != null) {
             saveMessage(sessionId, ConversationMessage.MessageRole.USER, query);
