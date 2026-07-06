@@ -5,7 +5,7 @@ import com.cn.cloudpictureplatform.rag.domain.ConversationMessage;
 import com.cn.cloudpictureplatform.rag.domain.RetrievalResult;
 import com.cn.cloudpictureplatform.rag.infrastructure.cache.SemanticCache;
 import com.cn.cloudpictureplatform.rag.infrastructure.embedding.EmbeddingClient;
-import com.cn.cloudpictureplatform.rag.infrastructure.generator.DeepSeekGenerationClient;
+import com.cn.cloudpictureplatform.rag.infrastructure.generator.GenerationClient;
 import com.cn.cloudpictureplatform.rag.infrastructure.metrics.RagMetrics;
 import com.cn.cloudpictureplatform.rag.infrastructure.persistence.ConversationRepository;
 import lombok.RequiredArgsConstructor;
@@ -23,7 +23,7 @@ public class QaService {
 
     private final RetrievalService retrievalService;
     private final RerankService rerankService;
-    private final DeepSeekGenerationClient generationClient;
+    private final GenerationClient generationClient;
     private final ConversationRepository conversationRepository;
     private final QueryRewriter queryRewriter;
     private final SemanticCache semanticCache;
@@ -61,7 +61,7 @@ public class QaService {
         }
 
         long start = System.currentTimeMillis();
-        List<RetrievalResult> retrieved = retrievalService.retrieve(searchQuery);
+        List<RetrievalResult> retrieved = retrievalService.retrieve(searchQuery, 0, queryEmbedding);
         List<RetrievalResult> reranked = rerankService.rerank(searchQuery, retrieved);
         long retrievalMs = System.currentTimeMillis() - start;
 

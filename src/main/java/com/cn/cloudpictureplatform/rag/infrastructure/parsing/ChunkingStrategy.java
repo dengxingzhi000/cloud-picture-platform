@@ -52,6 +52,19 @@ public class ChunkingStrategy {
     }
 
     private int estimateTokens(String text) {
-        return text.length();
+        if (text == null || text.isEmpty()) return 0;
+        int cjkCount = 0;
+        int otherCount = 0;
+        for (int i = 0; i < text.length(); i++) {
+            char c = text.charAt(i);
+            if (Character.UnicodeScript.of(c) == Character.UnicodeScript.HAN ||
+                Character.UnicodeScript.of(c) == Character.UnicodeScript.HIRAGANA ||
+                Character.UnicodeScript.of(c) == Character.UnicodeScript.KATAKANA) {
+                cjkCount++;
+            } else {
+                otherCount++;
+            }
+        }
+        return cjkCount + (otherCount + 3) / 4;
     }
 }

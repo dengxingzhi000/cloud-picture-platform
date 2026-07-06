@@ -28,6 +28,8 @@ public class RerankService {
             .map(RetrievalResult::content)
             .toList();
 
+        // Assumption: rerank API returns indices into the `contents` list,
+        // which is built from candidates in the same order.
         List<RerankResult> reranked = qwenRerankClient.rerank(query, contents, config.topN());
 
         return reranked.stream()

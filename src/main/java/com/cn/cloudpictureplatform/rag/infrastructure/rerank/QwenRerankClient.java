@@ -48,10 +48,9 @@ public class QwenRerankClient implements RerankClient {
                 ))
                 .toList();
         } catch (Exception e) {
-            log.warn("Rerank failed, returning original order: {}", e.getMessage());
-            int limit = Math.min(topN, documents.size());
-            return java.util.stream.IntStream.range(0, limit)
-                .mapToObj(i -> new RerankResult(i, 1.0 - (i * 0.1), documents.get(i)))
+            log.warn("Rerank fallback: returning candidates with sentinel score (0.0): {}", e.getMessage());
+            return java.util.stream.IntStream.range(0, documents.size())
+                .mapToObj(i -> new RerankResult(i, 0.0, documents.get(i)))
                 .toList();
         }
     }

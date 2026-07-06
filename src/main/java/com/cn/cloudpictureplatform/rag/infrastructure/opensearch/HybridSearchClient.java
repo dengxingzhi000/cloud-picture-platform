@@ -70,22 +70,23 @@ public class HybridSearchClient {
         Map<String, Double> rrfScores = new HashMap<>();
         Map<String, ChunkDocument> chunkMap = new HashMap<>();
 
+        // Standard RRF: 1/(k + rank) where rank is 1-based position
         List<Hit<ChunkDocument>> bm25Hits = bm25Response.hits().hits();
-        for (int i = 0; i < bm25Hits.size(); i++) {
-            ChunkDocument doc = bm25Hits.get(i).source();
+        for (int rank = 0; rank < bm25Hits.size(); rank++) {
+            ChunkDocument doc = bm25Hits.get(rank).source();
             if (doc != null) {
                 String id = doc.openSearchId();
-                rrfScores.merge(id, 1.0 / (k + i + 1), Double::sum);
+                rrfScores.merge(id, 1.0 / (k + rank + 1), Double::sum);
                 chunkMap.put(id, doc);
             }
         }
 
         List<Hit<ChunkDocument>> vectorHits = vectorResponse.hits().hits();
-        for (int i = 0; i < vectorHits.size(); i++) {
-            ChunkDocument doc = vectorHits.get(i).source();
+        for (int rank = 0; rank < vectorHits.size(); rank++) {
+            ChunkDocument doc = vectorHits.get(rank).source();
             if (doc != null) {
                 String id = doc.openSearchId();
-                rrfScores.merge(id, 1.0 / (k + i + 1), Double::sum);
+                rrfScores.merge(id, 1.0 / (k + rank + 1), Double::sum);
                 chunkMap.put(id, doc);
             }
         }

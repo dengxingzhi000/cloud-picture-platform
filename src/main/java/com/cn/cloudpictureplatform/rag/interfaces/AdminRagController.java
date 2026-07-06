@@ -6,7 +6,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/rag/admin")
+@RequestMapping("/api/v1/rag/admin")
 @RequiredArgsConstructor
 public class AdminRagController {
 

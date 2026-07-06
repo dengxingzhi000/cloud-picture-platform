@@ -16,14 +16,20 @@ public class SemanticCache {
     private final Deque<CachedEntry> cache = new ConcurrentLinkedDeque<>();
     private final double threshold;
     private final int maxEntries;
+    private final long ttlMs;
 
     public SemanticCache(RagProperties ragProperties) {
         this.threshold = ragProperties.cache().semanticThreshold();
-        this.maxEntries = 10000;
+        this.maxEntries = ragProperties.cache().maxEntries();
+        this.ttlMs = ragProperties.cache().ttlMs();
     }
 
     public Optional<String> findCachedAnswer(List<Float> queryEmbedding) {
+        long now = System.currentTimeMillis();
         for (CachedEntry entry : cache) {
+            if (now - entry.timestamp() > ttlMs) {
+                continue;
+            }
             double similarity = cosineSimilarity(queryEmbedding, entry.embedding());
             if (similarity >= threshold) {
                 log.debug("Semantic cache hit: similarity={}", similarity);
@@ -34,10 +40,16 @@ public class SemanticCache {
     }
 
     public void cacheAnswer(List<Float> queryEmbedding, String answer) {
+        evictExpired();
         cache.addLast(new CachedEntry(queryEmbedding, answer, System.currentTimeMillis()));
         while (cache.size() > maxEntries) {
             cache.pollFirst();
         }
+    }
+
+    public void evictExpired() {
+        long now = System.currentTimeMillis();
+        cache.removeIf(entry -> now - entry.timestamp() > ttlMs);
     }
 
     private double cosineSimilarity(List<Float> a, List<Float> b) {

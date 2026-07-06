@@ -2,6 +2,7 @@ package com.cn.cloudpictureplatform.rag.config;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import java.time.Duration;
+import java.util.List;
 
 @ConfigurationProperties(prefix = "app.rag")
 public record RagProperties(
@@ -12,7 +13,8 @@ public record RagProperties(
     Generation generation,
     Chunking chunking,
     Retrieval retrieval,
-    Cache cache
+    Cache cache,
+    Upload upload
 ) {
     public record OpenSearch(
         String baseUrl,
@@ -61,6 +63,13 @@ public record RagProperties(
         Duration embeddingTtl,
         Duration retrievalTtl,
         boolean semanticEnabled,
-        double semanticThreshold
+        double semanticThreshold,
+        int maxEntries,
+        long ttlMs
+    ) {}
+
+    public record Upload(
+        long maxFileSize,
+        List<String> allowedTypes
     ) {}
 }

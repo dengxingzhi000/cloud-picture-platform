@@ -46,6 +46,7 @@ public class RagDocument extends BaseEntity {
     @OneToMany(mappedBy = "document", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<DocumentChunk> chunks = new ArrayList<>();
 
+    /** JPA optimistic locking version — not a business version */
     @Version
     private Long versionLock;
 }
