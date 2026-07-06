@@ -91,7 +91,8 @@ public class IngestionService {
                     chunk.getPageNumber() != null ? chunk.getPageNumber() : 0,
                     1.0f,
                     embedConfig.dimensions(),
-                    osId
+                    osId,
+                    embeddings.get(i)
                 );
                 openSearchChunkClient.indexChunk(chunkDoc);
             }

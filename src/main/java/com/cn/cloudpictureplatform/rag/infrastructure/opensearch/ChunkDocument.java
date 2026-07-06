@@ -1,5 +1,7 @@
 package com.cn.cloudpictureplatform.rag.infrastructure.opensearch;
 
+import java.util.List;
+
 public record ChunkDocument(
     String documentId,
     int chunkIndex,
@@ -10,5 +12,6 @@ public record ChunkDocument(
     int pageNumber,
     float bm25Boost,
     int embeddingDim,
-    String openSearchId
+    String openSearchId,
+    List<Float> embedding
 ) {}

@@ -44,6 +44,9 @@ public class OpenSearchIndexInitializer {
                         .properties("bm25Boost", p -> p.float_(f -> f))
                         .properties("embeddingDim", p -> p.integer(i -> i))
                         .properties("openSearchId", p -> p.keyword(k -> k))
+                        .properties("embedding", p -> p.knnVector(k -> k
+                            .dimension(ragProperties.embedding().dimensions())
+                        ))
                     )
                 ));
                 log.info("Created OpenSearch index: {}", config.indexName());
