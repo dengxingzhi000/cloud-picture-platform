@@ -42,4 +42,13 @@ public class RagConfig {
             .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
             .build();
     }
+
+    @Bean
+    public WebClient deepSeekWebClient(RagProperties properties) {
+        var config = properties.generation();
+        return WebClient.builder()
+            .baseUrl(config.baseUrl())
+            .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+            .build();
+    }
 }

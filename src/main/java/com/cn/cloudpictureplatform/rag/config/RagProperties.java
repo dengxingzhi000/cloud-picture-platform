@@ -38,6 +38,7 @@ public record RagProperties(
     ) {}
 
     public record Generation(
+        String baseUrl,
         String model,
         int maxTokens,
         double temperature
