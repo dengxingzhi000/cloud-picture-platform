@@ -48,6 +48,18 @@ public class RagController {
         ));
     }
 
+    @PostMapping("/chat")
+    public ApiResponse<QueryResponse> chat(
+            @Valid @RequestBody QueryRequest request,
+            @RequestParam(required = false) String sessionId) {
+        QaService.QaResponse qaResponse = qaService.ask(request.query(), sessionId);
+        return ApiResponse.ok(new QueryResponse(
+            qaResponse.answer(),
+            qaResponse.citations(),
+            qaResponse.chunksUsed()
+        ));
+    }
+
     @DeleteMapping("/documents/{id}")
     public ApiResponse<Void> deleteDocument(@PathVariable UUID id) {
         ingestionService.softDeleteDocument(id);

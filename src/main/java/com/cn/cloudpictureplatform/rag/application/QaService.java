@@ -1,7 +1,9 @@
 package com.cn.cloudpictureplatform.rag.application;
 
+import com.cn.cloudpictureplatform.rag.domain.ConversationMessage;
 import com.cn.cloudpictureplatform.rag.domain.RetrievalResult;
 import com.cn.cloudpictureplatform.rag.infrastructure.generator.DeepSeekGenerationClient;
+import com.cn.cloudpictureplatform.rag.infrastructure.persistence.ConversationRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -17,6 +19,8 @@ public class QaService {
     private final RetrievalService retrievalService;
     private final RerankService rerankService;
     private final DeepSeekGenerationClient generationClient;
+    private final ConversationRepository conversationRepository;
+    private final QueryRewriter queryRewriter;
 
     private static final String SYSTEM_PROMPT = """
         你是一个企业知识库问答助手。请根据以下检索到的文档片段回答用户问题。
@@ -29,13 +33,28 @@ public class QaService {
         """;
 
     public QaResponse ask(String query) {
-        List<RetrievalResult> retrieved = retrievalService.retrieve(query);
-        List<RetrievalResult> reranked = rerankService.rerank(query, retrieved);
+        return ask(query, null);
+    }
+
+    public QaResponse ask(String query, String sessionId) {
+        List<ConversationMessage> history = sessionId != null
+            ? conversationRepository.findBySessionIdOrderByCreatedAtAsc(sessionId)
+            : List.of();
+
+        String searchQuery = queryRewriter.rewrite(query, history);
+
+        List<RetrievalResult> retrieved = retrievalService.retrieve(searchQuery);
+        List<RetrievalResult> reranked = rerankService.rerank(searchQuery, retrieved);
 
         String context = buildContext(reranked);
 
         String userPrompt = "检索到的文档：\n" + context + "\n\n用户问题：" + query;
         String answer = generationClient.generate(SYSTEM_PROMPT, userPrompt);
+
+        if (sessionId != null) {
+            saveMessage(sessionId, ConversationMessage.MessageRole.USER, query);
+            saveMessage(sessionId, ConversationMessage.MessageRole.ASSISTANT, answer);
+        }
 
         List<String> citations = reranked.stream()
             .map(r -> r.title() + (r.sectionPath() != null ? " > " + r.sectionPath() : ""))
@@ -53,6 +72,14 @@ public class QaService {
                 r.pageNumber(),
                 r.content()))
             .collect(Collectors.joining("\n\n---\n\n"));
+    }
+
+    private void saveMessage(String sessionId, ConversationMessage.MessageRole role, String content) {
+        ConversationMessage msg = new ConversationMessage();
+        msg.setSessionId(sessionId);
+        msg.setRole(role);
+        msg.setContent(content);
+        conversationRepository.save(msg);
     }
 
     public record QaResponse(String answer, List<String> citations, int chunksUsed) {}
