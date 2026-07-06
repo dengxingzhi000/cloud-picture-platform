@@ -29,7 +29,7 @@ public class HybridSearchClient {
                 .query(q -> q
                     .multiMatch(m -> m
                         .query(query)
-                        .fields("content^1.0", "title^2.0", "sectionPath^1.5")
+                        .fields("content^1.0", "title^2.0", "sectionPath^1.5", "documentId^3.0")
                     )
                 )
                 .size(topK)
