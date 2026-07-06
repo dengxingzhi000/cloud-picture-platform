@@ -1,0 +1,12 @@
+[
+  {
+    "query": "出差报销的审批流程是什么？",
+    "expectedDocuments": ["出差报销管理办法.pdf"],
+    "expectedSections": ["审批流程"]
+  },
+  {
+    "query": "年假有多少天？",
+    "expectedDocuments": ["员工手册.pdf"],
+    "expectedSections": ["假期制度"]
+  }
+]
