@@ -43,6 +43,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/files/**").permitAll()
                         .requestMatchers("/ws/**").permitAll()
                         .requestMatchers("/api/v1/admin/**").hasAuthority("admin:review")
+                        .requestMatchers("/api/v1/rag/admin/**").hasAuthority("admin:review")
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
