@@ -2,7 +2,7 @@ package com.cn.cloudpictureplatform.rag.application;
 
 import com.cn.cloudpictureplatform.rag.config.RagProperties;
 import com.cn.cloudpictureplatform.rag.domain.RetrievalResult;
-import com.cn.cloudpictureplatform.rag.infrastructure.rerank.QwenRerankClient;
+import com.cn.cloudpictureplatform.rag.infrastructure.rerank.DeepSeekRerankClient;
 import com.cn.cloudpictureplatform.rag.infrastructure.rerank.RerankResult;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -14,7 +14,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class RerankService {
 
-    private final QwenRerankClient qwenRerankClient;
+    private final DeepSeekRerankClient deepSeekRerankClient;
     private final RagProperties ragProperties;
 
     public List<RetrievalResult> rerank(String query, List<RetrievalResult> candidates) {
@@ -30,7 +30,7 @@ public class RerankService {
 
         // Assumption: rerank API returns indices into the `contents` list,
         // which is built from candidates in the same order.
-        List<RerankResult> reranked = qwenRerankClient.rerank(query, contents, config.topN());
+        List<RerankResult> reranked = deepSeekRerankClient.rerank(query, contents, config.topN());
 
         return reranked.stream()
             .map(rr -> {

@@ -26,7 +26,7 @@ public class RagConfig {
     }
 
     @Bean
-    public WebClient qwenEmbeddingWebClient(RagProperties properties) {
+    public WebClient deepSeekEmbeddingWebClient(RagProperties properties) {
         var config = properties.embedding();
         return WebClient.builder()
             .baseUrl(config.baseUrl())
@@ -35,7 +35,7 @@ public class RagConfig {
     }
 
     @Bean
-    public WebClient qwenRerankWebClient(RagProperties properties) {
+    public WebClient deepSeekRerankWebClient(RagProperties properties) {
         var config = properties.rerank();
         return WebClient.builder()
             .baseUrl(config.baseUrl())
