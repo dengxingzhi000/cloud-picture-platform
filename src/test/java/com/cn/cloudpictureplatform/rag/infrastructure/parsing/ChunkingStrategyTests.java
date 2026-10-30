@@ -10,7 +10,8 @@ class ChunkingStrategyTests {
 
     @Test
     void shouldSplitTextIntoChunks() {
-        String text = "A".repeat(250);
+        // 1200 ASCII characters ≈ 300 tokens (4 characters ≈ 1 token), well above maxTokens=100
+        String text = "A".repeat(1200);
         List<TextChunk> chunks = strategy.chunk(text);
 
         assertFalse(chunks.isEmpty());
@@ -28,15 +29,31 @@ class ChunkingStrategyTests {
     }
 
     @Test
+    void shouldNotChunkTextWithinTokenBudget() {
+        // 250 ASCII characters ≈ 63 tokens, below maxTokens=100
+        String text = "A".repeat(250);
+        List<TextChunk> chunks = strategy.chunk(text);
+
+        assertEquals(1, chunks.size());
+        assertTrue(chunks.get(0).tokenCount() <= 100);
+    }
+
+    @Test
     void shouldAddOverlapBetweenChunks() {
         String text = "Word ".repeat(200);
         List<TextChunk> chunks = strategy.chunk(text);
 
-        if (chunks.size() > 1) {
-            String lastPartOfFirst = chunks.get(0).content();
-            String firstPartOfSecond = chunks.get(1).content();
-            assertNotNull(lastPartOfFirst);
-            assertNotNull(firstPartOfSecond);
-        }
+        assertTrue(chunks.size() > 1);
+        // the next chunk starts before the previous one ends
+        assertTrue(chunks.get(1).startOffset() < chunks.get(0).endOffset());
+    }
+
+    @Test
+    void shouldCoverWholeText() {
+        String text = "A".repeat(1200);
+        List<TextChunk> chunks = strategy.chunk(text);
+
+        assertEquals(0, chunks.get(0).startOffset());
+        assertEquals(text.length(), chunks.get(chunks.size() - 1).endOffset());
     }
 }
