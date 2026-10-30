@@ -43,4 +43,7 @@ public class AppUser extends BaseEntity {
     @Column(nullable = false, length = 20)
     @Builder.Default
     private UserStatus status = UserStatus.ACTIVE;
+
+    @Column(name = "tenant_id", columnDefinition = "uuid")
+    private java.util.UUID tenantId;
 }

@@ -19,15 +19,22 @@ public class AppUserPrincipal implements UserDetails {
     private final boolean enabled;
     private final Set<String> roles;
     private final Set<String> permissions;
+    private final UUID tenantId;
 
     public AppUserPrincipal(UUID id, String username, String password, boolean enabled,
                             Set<String> roles, Set<String> permissions) {
+        this(id, username, password, enabled, roles, permissions, null);
+    }
+
+    public AppUserPrincipal(UUID id, String username, String password, boolean enabled,
+                            Set<String> roles, Set<String> permissions, UUID tenantId) {
         this.id = id;
         this.username = username;
         this.password = password;
         this.enabled = enabled;
         this.roles = roles != null ? roles : Set.of();
         this.permissions = permissions != null ? permissions : Set.of();
+        this.tenantId = tenantId;
     }
 
     @Override
