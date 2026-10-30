@@ -68,7 +68,8 @@ public class AppUserDetailsService implements UserDetailsService {
                 user.getPasswordHash(),
                 enabled,
                 roles,
-                permissions
+                permissions,
+                user.getTenantId()
         );
     }
 }
