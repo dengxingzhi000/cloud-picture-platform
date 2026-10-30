@@ -6,8 +6,8 @@ class Settings(BaseSettings):
     clip_model_name: str = "ViT-L-14"
     clip_pretrained: str = "openai"
     moderation_provider: str = "deepseek"
-    qwen_vl_enabled: bool = False
-    qwen_vl_path: str = ""
+    deepseek_vl_enabled: bool = False
+    deepseek_vl_model: str = "deepseek-v4-flash"
     aliyun_ak: str = ""
     aliyun_sk: str = ""
 
@@ -19,7 +19,7 @@ class Settings(BaseSettings):
 
     deepseek_api_key: str = "sk-14808c35406947f2828bfdb51a044cd8"
     deepseek_base_url: str = "https://api.deepseek.com"
-    deepseek_model: str = "deepseek-chat"
+    deepseek_model: str = "deepseek-v4-flash"
 
     java_backend_url: str = "http://localhost:8080"
 

@@ -11,6 +11,7 @@ import com.cn.cloudpictureplatform.rag.infrastructure.persistence.ConversationRe
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import reactor.core.publisher.Flux;
 
 import java.util.List;
 import java.util.Optional;
@@ -109,4 +110,49 @@ public class QaService {
     }
 
     public record QaResponse(String answer, List<String> citations, int chunksUsed) {}
+
+    public record StreamChunk(String type, String content, List<String> citations, Integer chunksUsed) {
+        public static StreamChunk token(String content) {
+            return new StreamChunk("token", content, null, null);
+        }
+
+        public static StreamChunk meta(List<String> citations, int chunksUsed) {
+            return new StreamChunk("meta", null, citations, chunksUsed);
+        }
+
+        public static StreamChunk done() {
+            return new StreamChunk("done", null, null, null);
+        }
+    }
+
+    public Flux<StreamChunk> streamAsk(String query, String sessionId) {
+        List<ConversationMessage> history = sessionId != null
+            ? conversationRepository.findBySessionIdOrderByCreatedAtAsc(sessionId)
+            : List.of();
+
+        String searchQuery = queryRewriter.rewrite(query, history);
+        List<RetrievalResult> reranked = rerankService.rerank(searchQuery, retrievalService.retrieve(searchQuery, 0, embeddingClient.embedSingle(searchQuery, ragProperties.embedding().dimensions())));
+        String context = buildContext(reranked);
+        String userPrompt = "检索到的文档：\n" + context + "\n\n用户问题：" + query;
+
+        List<String> citations = reranked.stream()
+            .map(r -> r.title() + (r.sectionPath() != null ? " > " + r.sectionPath() : ""))
+            .distinct()
+            .collect(Collectors.toList());
+
+        StringBuilder full = new StringBuilder();
+        return generationClient.generateStream(SYSTEM_PROMPT, userPrompt)
+            .map(token -> {
+                full.append(token);
+                return StreamChunk.token(token);
+            })
+            .concatWith(Flux.just(StreamChunk.meta(citations, reranked.size())))
+            .concatWith(Flux.just(StreamChunk.done()))
+            .doOnComplete(() -> {
+                if (sessionId != null) {
+                    saveMessage(sessionId, ConversationMessage.MessageRole.USER, query);
+                    saveMessage(sessionId, ConversationMessage.MessageRole.ASSISTANT, full.toString());
+                }
+            });
+    }
 }

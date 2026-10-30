@@ -53,20 +53,20 @@ app:
       connect-timeout-ms: 5000
       socket-timeout-ms: 30000
     embedding:
-      base-url: http://localhost:8000
-      model: text-embedding-v3
+      base-url: ${AI_PLATFORM_URL:http://localhost:8000}
+      model: clip
       dimensions: 1024
       batch-size: 32
       timeout: 10s
     rerank:
-      base-url: http://localhost:8000
-      model: gte-rerank-v2
+      base-url: ${DEEPSEEK_BASE_URL:https://api.deepseek.com}
+      model: deepseek-v4-flash
       top-n: 5
       enabled: true
-      timeout: 10s
+      timeout: 30s
     generation:
       base-url: ${DEEPSEEK_BASE_URL:https://api.deepseek.com}
-      model: deepseek-reasoner
+      model: deepseek-v4-flash
       max-tokens: 4096
       temperature: 0.3
     chunking:

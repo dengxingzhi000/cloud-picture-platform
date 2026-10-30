@@ -5,18 +5,22 @@ import com.cn.cloudpictureplatform.rag.application.IngestionService;
 import com.cn.cloudpictureplatform.rag.application.QaService;
 import com.cn.cloudpictureplatform.rag.config.RagProperties;
 import com.cn.cloudpictureplatform.rag.domain.RagDocument;
+import com.cn.cloudpictureplatform.rag.interfaces.dto.ChatRequest;
+import com.cn.cloudpictureplatform.rag.interfaces.dto.DocumentSummaryResponse;
 import com.cn.cloudpictureplatform.rag.interfaces.dto.DocumentUploadResponse;
 import com.cn.cloudpictureplatform.rag.interfaces.dto.QueryRequest;
 import com.cn.cloudpictureplatform.rag.interfaces.dto.QueryResponse;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import java.io.IOException;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import com.cn.cloudpictureplatform.rag.application.QaService.StreamChunk;
 
 @RestController
 @RequestMapping("/api/rag")
@@ -80,20 +84,49 @@ public class RagController {
         return ApiResponse.ok(new QueryResponse(
             qaResponse.answer(),
             qaResponse.citations(),
-            qaResponse.chunksUsed()
+            qaResponse.chunksUsed(),
+            null
         ));
     }
 
     @PostMapping("/chat")
-    public ApiResponse<QueryResponse> chat(
-            @Valid @RequestBody QueryRequest request,
-            @RequestParam @NotBlank @Size(max = 100) String sessionId) {
+    public ApiResponse<QueryResponse> chat(@Valid @RequestBody ChatRequest request) {
+        String sessionId = request.sessionId() != null ? request.sessionId() : UUID.randomUUID().toString();
         QaService.QaResponse qaResponse = qaService.ask(request.query(), sessionId);
         return ApiResponse.ok(new QueryResponse(
             qaResponse.answer(),
             qaResponse.citations(),
-            qaResponse.chunksUsed()
+            qaResponse.chunksUsed(),
+            sessionId
         ));
+    }
+
+    @PostMapping(value = "/chat/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public SseEmitter chatStream(@Valid @RequestBody ChatRequest request) {
+        SseEmitter emitter = new SseEmitter(120_000L);
+        String sessionId = request.sessionId() != null ? request.sessionId() : UUID.randomUUID().toString();
+        qaService.streamAsk(request.query(), sessionId)
+            .doOnNext(chunk -> {
+                try {
+                    switch (chunk.type()) {
+                        case "token" -> emitter.send(SseEmitter.event().name("token").data(chunk.content()));
+                        case "meta" -> emitter.send(SseEmitter.event().name("meta").data(new QueryResponse(null, chunk.citations(), chunk.chunksUsed(), sessionId)));
+                        case "done" -> emitter.send(SseEmitter.event().name("done").data(""));
+                    }
+                } catch (IOException e) {
+                    emitter.completeWithError(e);
+                }
+            })
+            .doOnComplete(emitter::complete)
+            .doOnError(emitter::completeWithError)
+            .subscribe();
+        return emitter;
+    }
+
+    @GetMapping("/documents")
+    public ApiResponse<List<DocumentSummaryResponse>> listDocuments() {
+        List<DocumentSummaryResponse> documents = ingestionService.listDocuments();
+        return ApiResponse.ok(documents);
     }
 
     @DeleteMapping("/documents/{id}")

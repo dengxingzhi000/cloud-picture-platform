@@ -4,7 +4,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 
-class QwenEmbeddingClientTests {
+class DeepSeekEmbeddingClientTests {
 
     @Test
     void shouldHaveCorrectInterface() {
@@ -12,9 +12,9 @@ class QwenEmbeddingClientTests {
     }
 
     @Test
-    void shouldCreateRequestWithCorrectDimensions() {
-        var request = new EmbeddingRequest(List.of("hello world"), "text-embedding-v3", 1024);
+    void shouldCreateRequestWithCorrectModel() {
+        var request = new EmbeddingRequest(List.of("hello world"), "clip");
         assertEquals(1, request.input().size());
-        assertEquals(1024, request.dimensions());
+        assertEquals("clip", request.model());
     }
 }

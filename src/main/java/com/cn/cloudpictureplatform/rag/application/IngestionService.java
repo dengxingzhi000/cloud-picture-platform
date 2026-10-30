@@ -6,6 +6,7 @@ import com.cn.cloudpictureplatform.rag.domain.DocumentChunk;
 import com.cn.cloudpictureplatform.rag.domain.DocumentStatus;
 import com.cn.cloudpictureplatform.rag.domain.RagDocument;
 import com.cn.cloudpictureplatform.rag.infrastructure.embedding.EmbeddingClient;
+import com.cn.cloudpictureplatform.rag.interfaces.dto.DocumentSummaryResponse;
 import com.cn.cloudpictureplatform.rag.infrastructure.metrics.RagMetrics;
 import com.cn.cloudpictureplatform.rag.infrastructure.opensearch.ChunkDocument;
 import com.cn.cloudpictureplatform.rag.infrastructure.opensearch.OpenSearchChunkClient;
@@ -122,6 +123,20 @@ public class IngestionService {
             document.setStatus(DocumentStatus.FAILED);
             ragDocumentRepository.save(document);
         }
+    }
+
+    @Transactional(readOnly = true)
+    public List<DocumentSummaryResponse> listDocuments() {
+        return ragDocumentRepository.findByDeletedFalse().stream()
+            .map(doc -> new DocumentSummaryResponse(
+                doc.getId(),
+                doc.getTitle(),
+                doc.getOriginalFilename(),
+                doc.getStatus().name(),
+                doc.getChunks() != null ? doc.getChunks().size() : 0,
+                doc.getCreatedAt()
+            ))
+            .toList();
     }
 
     @Transactional
